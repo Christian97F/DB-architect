@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB Architect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0b0e;--bg2:#111318;--bg3:#181c24;--bg4:#1e2330;
+  --border:#2a3040;--border2:#3a4560;
+  --text:#e8ecf4;--text2:#8a95b0;--text3:#4a5570;
+  --accent:#4f8ef7;--accent2:#2d6ee0;
+  --green:#3de8a0;--red:#f74f6a;--yellow:#f7c84f;--orange:#f78c4f;--purple:#b04ff7;--cyan:#4ff0f7;
+  --clr-relational:#4f8ef7;--clr-document:#3de8a0;--clr-graph:#b04ff7;
+  --clr-keyvalue:#f7c84f;--clr-timeseries:#f74f6a;--clr-column:#4ff0f7;
+  --shadow:rgba(0,0,0,.4);
+}
+body.light {
+  --bg:#f0f2f7;--bg2:#ffffff;--bg3:#e8ebf2;--bg4:#dde1ec;
+  --border:#d0d5e8;--border2:#b0bbd8;
+  --text:#1a1f2e;--text2:#4a5270;--text3:#9099b8;
+  --accent:#2d6ee0;--accent2:#1a55c0;
+  --green:#1ab872;--red:#d63050;--yellow:#c9900a;--orange:#c96010;--purple:#8030d0;--cyan:#0898a8;
+  --clr-relational:#2d6ee0;--clr-document:#1ab872;--clr-graph:#8030d0;
+  --clr-keyvalue:#c9900a;--clr-timeseries:#d63050;--clr-column:#0898a8;
+  --shadow:rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;user-select:none;transition:background .2s,color .2s;}
+/* light mode grid override */
+body.light #canvas-wrap{background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);}
+/* theme toggle button */
+.btn-theme{padding:4px 9px;font-size:14px;border-radius:5px;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all .15s;line-height:1;}
+.btn-theme:hover{background:var(--bg4);border-color:var(--accent);}
+/* code panel */
+#code-panel{width:300px;min-width:200px;max-width:500px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:background .2s;}
+#code-panel-header{display:flex;align-items:center;padding:0 12px;height:38px;border-bottom:1px solid var(--border);gap:6px;flex-shrink:0;}
+#code-panel-header span{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);flex:1;}
+.code-tab{padding:3px 8px;font-size:10px;border-radius:3px;cursor:pointer;border:1px solid transparent;color:var(--text3);transition:all .1s;white-space:nowrap;}
+.code-tab:hover{color:var(--text2);background:var(--bg3);}
+.code-tab.active{color:var(--accent);border-color:var(--accent);background:rgba(79,142,247,.08);}
+body.light .code-tab.active{background:rgba(45,110,224,.08);}
+#code-output{flex:1;overflow:auto;padding:12px;font-size:10.5px;line-height:1.6;color:var(--text2);white-space:pre;font-family:'JetBrains Mono',monospace;tab-size:2;}
+#code-output .kw{color:var(--accent);}
+#code-output .str{color:var(--green);}
+#code-output .cm{color:var(--text3);}
+#code-output .ty{color:var(--yellow);}
+#code-output .pk{color:var(--orange);}
+#code-panel-resize{width:4px;cursor:col-resize;background:var(--border);flex-shrink:0;transition:background .1s;}
+#code-panel-resize:hover{background:var(--accent);}
+/* node box shadow via var */
+.node{box-shadow:0 4px 20px var(--shadow);}
+.node.dragging{box-shadow:0 12px 40px var(--shadow);}
+#topbar{display:flex;align-items:center;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 14px;flex-shrink:0;z-index:100;gap:4px;overflow-x:auto;}
+#logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:var(--text);margin-right:12px;white-space:nowrap;flex-shrink:0;}
+#logo span{color:var(--accent);}
+.top-sep{width:1px;height:26px;background:var(--border);margin:0 8px;flex-shrink:0;}
+.dbtype-tabs{display:flex;gap:2px;flex-shrink:0;}
+.dbtab{padding:4px 10px;font-size:10.5px;font-family:'JetBrains Mono',monospace;font-weight:500;border-radius:4px;cursor:pointer;transition:all .15s;border:1px solid transparent;white-space:nowrap;}
+.dbtab:hover{background:var(--bg3);}
+.dbtab.active{border-color:currentColor;}
+.dbtab[data-type="relational"]{color:var(--clr-relational);}
+.dbtab[data-type="document"]{color:var(--clr-document);}
+.dbtab[data-type="graph"]{color:var(--clr-graph);}
+.dbtab[data-type="keyvalue"]{color:var(--clr-keyvalue);}
+.dbtab[data-type="timeseries"]{color:var(--clr-timeseries);}
+.dbtab[data-type="column"]{color:var(--clr-column);}
+.dbtab.active[data-type="relational"]{background:rgba(79,142,247,.12);}
+.dbtab.active[data-type="document"]{background:rgba(61,232,160,.12);}
+.dbtab.active[data-type="graph"]{background:rgba(176,79,247,.12);}
+.dbtab.active[data-type="keyvalue"]{background:rgba(247,200,79,.12);}
+.dbtab.active[data-type="timeseries"]{background:rgba(247,79,106,.12);}
+.dbtab.active[data-type="column"]{background:rgba(79,240,247,.12);}
+.top-actions{margin-left:auto;display:flex;gap:5px;align-items:center;flex-shrink:0;}
+.btn{padding:5px 11px;font-size:10.5px;font-family:'JetBrains Mono',monospace;border-radius:5px;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all .15s;white-space:nowrap;}
+.btn:hover{background:var(--bg4);color:var(--text);border-color:var(--accent);}
+.btn.primary{background:var(--accent2);border-color:var(--accent);color:#fff;}
+.btn.primary:hover{background:var(--accent);}
+.btn.danger{border-color:rgba(247,79,106,.4);color:var(--red);}
+.btn.danger:hover{background:rgba(247,79,106,.15);}
+#main{display:flex;flex:1;overflow:hidden;}
+#sidebar{width:210px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar-section{border-bottom:1px solid var(--border);padding-bottom:6px;}
+.sidebar-title{padding:10px 12px 6px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;}
+.sidebar-add{display:flex;align-items:center;gap:7px;padding:6px 12px;font-size:11px;cursor:pointer;color:var(--text2);transition:all .12s;background:none;border:none;font-family:'JetBrains Mono',monospace;width:100%;text-align:left;}
+.sidebar-add:hover{color:var(--text);background:var(--bg3);}
+.sidebar-add .ico{font-size:13px;}
+.sidebar-info{padding:8px 12px;font-size:10px;color:var(--text3);line-height:1.7;}
+.sidebar-info b{color:var(--text2);}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;background-position:-1px -1px;}
+#canvas{position:absolute;top:0;left:0;transform-origin:0 0;}
+#canvas-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;transform-origin:0 0;}
+.zoom-info{position:absolute;bottom:12px;right:14px;font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);padding:3px 8px;border-radius:4px;}
+#canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+#canvas-hint h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--border2);margin-bottom:6px;}
+#canvas-hint p{font-size:11px;color:var(--text3);}
+/* NODES */
+.node{position:absolute;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);min-width:200px;cursor:grab;transition:border-color .15s,box-shadow .15s;}
+.node:hover,.node.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,142,247,.2),0 6px 24px var(--shadow);}
+.node.dragging{cursor:grabbing;z-index:1000;}
+.node-header{padding:8px 10px;border-radius:6px 6px 0 0;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);}
+.node-header-icon{font-size:12px;flex-shrink:0;}
+.node-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;flex:1;cursor:text;outline:none;background:transparent;border:none;color:inherit;caret-color:var(--accent);min-width:60px;}
+.node-title:focus{background:rgba(255,255,255,.05);border-radius:3px;padding:1px 3px;}
+.node-del{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--text3);transition:all .12s;background:transparent;border:none;flex-shrink:0;}
+.node-del:hover{background:rgba(247,79,106,.2);color:var(--red);}
+.node-body{padding:6px 0 5px;}
+.add-row-btn{display:flex;align-items:center;gap:6px;padding:4px 12px;font-size:10px;color:var(--text3);cursor:pointer;transition:color .12s;background:none;border:none;font-family:'JetBrains Mono',monospace;width:100%;}
+.add-row-btn:hover{color:var(--accent);}
+/* RELATIONAL */
+.node[data-type="relational"]{border-color:rgba(79,142,247,.35);}
+.node[data-type="relational"] .node-header{background:rgba(79,142,247,.1);color:var(--clr-relational);}
+.col-row{display:flex;align-items:center;padding:3px 10px 3px 8px;gap:5px;font-size:10.5px;transition:background .1s;}
+.col-row:hover{background:rgba(255,255,255,.03);}
+.col-badge{font-size:8px;font-weight:700;width:16px;text-align:center;flex-shrink:0;padding:1px 2px;border-radius:2px;}
+.col-pk{color:var(--yellow);background:rgba(247,200,79,.12);}
+.col-fk{color:var(--orange);background:rgba(247,140,79,.12);}
+.col-empty{width:16px;flex-shrink:0;}
+.col-name{flex:1;color:var(--text);}
+.col-type{color:var(--text3);font-size:9.5px;background:var(--bg3);padding:1px 5px;border-radius:3px;}
+.col-nn{color:var(--red);font-size:9px;flex-shrink:0;}
+.conn-dot{width:9px;height:9px;border-radius:50%;background:var(--accent2);border:2px solid var(--accent);cursor:crosshair;flex-shrink:0;transition:transform .12s,background .12s;}
+.conn-dot:hover{transform:scale(1.5);}
+/* DOCUMENT */
+.node[data-type="document"]{border-color:rgba(61,232,160,.35);}
+.node[data-type="document"] .node-header{background:rgba(61,232,160,.1);color:var(--clr-document);}
+.doc-field{display:flex;align-items:center;padding:2px 10px;font-size:10.5px;gap:6px;}
+.doc-key{color:var(--clr-document);min-width:70px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.doc-type{font-size:9.5px;padding:1px 5px;background:var(--bg3);border-radius:3px;color:var(--text3);}
+.doc-badge{font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(61,232,160,.12);color:var(--clr-document);}
+/* GRAPH */
+.node[data-type="graph-node"]{border-color:rgba(176,79,247,.35);min-width:170px;}
+.node[data-type="graph-node"] .node-header{background:rgba(176,79,247,.1);color:var(--clr-graph);}
+.node[data-type="graph-edge"]{border-color:rgba(247,200,79,.35);min-width:170px;}
+.node[data-type="graph-edge"] .node-header{background:rgba(247,200,79,.1);color:var(--clr-keyvalue);}
+.prop-row{display:flex;align-items:center;gap:6px;padding:2px 10px;font-size:10.5px;}
+.prop-key{color:var(--purple);min-width:65px;}
+.prop-type{font-size:9.5px;color:var(--text3);background:var(--bg3);padding:1px 5px;border-radius:3px;}
+.graph-dir-badge{font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(247,200,79,.1);color:var(--clr-keyvalue);margin:0 10px 6px;display:inline-block;}
+/* KEY-VALUE */
+.node[data-type="keyvalue"]{border-color:rgba(247,200,79,.35);}
+.node[data-type="keyvalue"] .node-header{background:rgba(247,200,79,.1);color:var(--clr-keyvalue);}
+.kv-row{display:flex;gap:6px;padding:3px 10px;font-size:10.5px;align-items:center;}
+.kv-pattern{color:var(--yellow);font-style:italic;flex:1;font-size:10px;}
+.kv-type{font-size:9.5px;padding:1px 6px;border-radius:3px;background:rgba(247,200,79,.1);color:var(--clr-keyvalue);flex-shrink:0;}
+.kv-ttl{font-size:9px;color:var(--text3);flex-shrink:0;}
+/* TIME-SERIES */
+.node[data-type="timeseries"]{border-color:rgba(247,79,106,.35);}
+.node[data-type="timeseries"] .node-header{background:rgba(247,79,106,.1);color:var(--clr-timeseries);}
+.ts-section{padding:4px 10px 1px;font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+.ts-row{display:flex;align-items:center;gap:6px;padding:2px 10px;font-size:10.5px;}
+.ts-icon{font-size:9px;width:12px;text-align:center;flex-shrink:0;}
+.ts-name{flex:1;color:var(--text2);}
+.ts-type{font-size:9.5px;color:var(--text3);background:var(--bg3);padding:1px 5px;border-radius:3px;}
+.ts-retention{padding:3px 10px 0;font-size:9px;color:rgba(247,79,106,.6);}
+/* COLUMN-FAMILY */
+.node[data-type="column"]{border-color:rgba(79,240,247,.35);}
+.node[data-type="column"] .node-header{background:rgba(79,240,247,.1);color:var(--clr-column);}
+.cf-pk-section{background:rgba(79,240,247,.05);border-bottom:1px solid var(--border);padding:4px 10px 6px;}
+.cf-pk-label{font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.cf-col-row{display:flex;align-items:center;gap:6px;padding:2px 10px;font-size:10.5px;}
+.cf-col-name{flex:1;color:var(--cyan);}
+.cf-col-type{font-size:9.5px;color:var(--text3);background:var(--bg3);padding:1px 5px;border-radius:3px;}
+.cf-pk-key{color:var(--cyan);font-weight:700;}
+.cf-cluster-label{font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:4px 10px 1px;}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;min-width:420px;max-width:700px;width:92%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.modal-header h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;flex:1;}
+.modal-body{padding:16px 18px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.modal textarea{width:100%;height:260px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;resize:vertical;outline:none;line-height:1.5;}
+.modal textarea:focus{border-color:var(--accent);}
+.modal-tabs{display:flex;gap:2px;margin-bottom:12px;flex-wrap:wrap;}
+.mtab{padding:5px 12px;font-size:11px;border-radius:4px;cursor:pointer;border:1px solid transparent;color:var(--text2);transition:all .12s;}
+.mtab:hover{background:var(--bg3);}
+.mtab.active{background:rgba(79,142,247,.1);border-color:var(--accent);color:var(--accent);}
+.form-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.form-label{font-size:11px;color:var(--text2);min-width:100px;}
+.form-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 9px;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+select.form-input{cursor:pointer;}
+.col-editor-row{display:flex;gap:5px;align-items:center;margin-bottom:5px;padding:5px 8px;background:var(--bg3);border-radius:5px;}
+.col-editor-row input,.col-editor-row select{background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 6px;outline:none;}
+.col-editor-row input{flex:1;min-width:50px;}
+.col-editor-row select{min-width:80px;}
+.col-editor-row label{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;}
+.col-editor-row input[type="checkbox"]{width:14px;height:14px;cursor:pointer;flex:none;min-width:14px;}
+.msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:8px 18px;font-size:11px;color:var(--text2);z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:fadeUp .2s ease;pointer-events:none;}
+@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+.node[data-type="kv-flow"]{border-color:rgba(247,200,79,.5);min-width:180px;}
+.node[data-type="kv-flow"] .node-header{background:rgba(247,200,79,.15);color:var(--clr-keyvalue);}
+.node[data-type="ts-task"]{border-color:rgba(247,79,106,.5);min-width:180px;}
+.node[data-type="ts-task"] .node-header{background:rgba(247,79,106,.15);color:var(--clr-timeseries);}
+.node[data-type="doc-index"]{border-color:rgba(61,232,160,.5);min-width:180px;}
+.node[data-type="doc-index"] .node-header{background:rgba(61,232,160,.15);color:var(--clr-document);}
+.node[data-type="cf-view"]{border-color:rgba(79,240,247,.5);min-width:180px;}
+.node[data-type="cf-view"] .node-header{background:rgba(79,240,247,.15);color:var(--clr-column);}
+/* ref/flow relation lines */
+.rel-line-doc{stroke:rgba(61,232,160,.7);stroke-width:1.5px;fill:none;cursor:pointer;}
+.rel-line-doc:hover{stroke:var(--green);}
+.rel-line-ts{stroke:rgba(247,79,106,.7);stroke-width:1.5px;stroke-dasharray:6,3;fill:none;cursor:pointer;}
+.rel-line-cf{stroke:rgba(79,240,247,.6);stroke-width:1.5px;stroke-dasharray:4,3;fill:none;}
+.rel-line{stroke:rgba(79,142,247,.6);stroke-width:1.5px;fill:none;cursor:pointer;}
+.rel-line:hover{stroke:var(--accent);}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="logo">DB<span>Architect</span></div>
+  <div class="top-sep"></div>
+  <a href="index.html" style="padding:4px 11px;font-size:10.5px;font-family:'JetBrains Mono',monospace;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);text-decoration:none;white-space:nowrap;transition:all .15s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border2)'" title="Startseite">⌂ Start</a>
+  <a href="project-architect.html" style="padding:4px 11px;font-size:10.5px;font-family:'JetBrains Mono',monospace;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);text-decoration:none;white-space:nowrap;transition:all .15s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border2)'" title="Beide Dateien müssen im selben Ordner liegen">◈ Project Architect</a>
+  <div class="top-sep"></div>
+  <div class="dbtype-tabs">
+    <div class="dbtab active" data-type="relational">▦ Relational</div>
+    <div class="dbtab" data-type="document">◎ Document</div>
+    <div class="dbtab" data-type="graph">⬡ Graph</div>
+    <div class="dbtab" data-type="keyvalue">⌗ Key-Value</div>
+    <div class="dbtab" data-type="timeseries">~ Time-Series</div>
+    <div class="dbtab" data-type="column">≡ Column-Family</div>
+  </div>
+  <div class="top-sep"></div>
+  <div class="top-actions">
+    <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Hell/Dunkel">🌙</button>
+    <div class="top-sep"></div>
+    <button class="btn" id="btn-undo" onclick="undo()" style="opacity:.35" title="Nichts rückgängig zu machen">↩ Undo</button>
+    <button class="btn" id="btn-redo" onclick="redo()" style="opacity:.35" title="Nichts zu wiederholen">↪ Redo</button>
+    <div class="top-sep"></div>
+    <button class="btn" onclick="showImportModal()">↑ Import</button>
+    <button class="btn" onclick="showExportModal()">↓ Export</button>
+    <button class="btn" onclick="exportImage()">🖼 PNG</button>
+    <button class="btn" onclick="exportPDF()">📄 PDF</button>
+    <button class="btn" onclick="toggleCodePanel()" id="btn-code">{ } Code</button>
+    <button class="btn danger" onclick="clearCanvas()">✕ Leeren</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div class="sidebar-section" id="sidebar-content"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Canvas</div>
+      <button class="sidebar-add" onclick="loadDemoForCurrentType()"><span class="ico">★</span>Demo laden</button>
+      <button class="sidebar-add" onclick="zoomReset()"><span class="ico">⊡</span>Zoom zurücksetzen</button>
+      <button class="sidebar-add" onclick="autoLayout()"><span class="ico">◈</span>Auto-Layout</button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Legende</div>
+      <div class="sidebar-info" id="sidebar-legend"></div>
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <svg id="canvas-svg"></svg>
+    <div id="canvas">
+      <div id="canvas-hint">
+        <h2>Leeres Diagramm</h2>
+        <p>Typ wählen → Element über Sidebar hinzufügen</p>
+      </div>
+    </div>
+    <div class="zoom-info" id="zoom-info">100%</div>
+  </div>
+  <div id="code-panel-resize" id="cpanel-resize" style="display:none"></div>
+  <div id="code-panel" style="display:none">
+    <div id="code-panel-header">
+      <span>{ } Code</span>
+      <div id="code-tabs"></div>
+      <button class="node-del" onclick="toggleCodePanel()" style="width:20px;height:20px;font-size:13px;margin-left:4px">✕</button>
+    </div>
+    <div id="code-output"></div>
+  </div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+var state = { dbType:'relational', nodes:[], relations:[], nextId:1 };
+var canvas, canvasSvg, canvasWrap;
+var scale=1, panX=0, panY=0;
+var isDragging=false, dragNode=null, dragOffX=0, dragOffY=0;
+var isPanning=false, panStartX=0, panStartY=0, panStartPanX=0, panStartPanY=0;
+var connectingFrom=null;
+// ── UNDO / REDO ───────────────────────────────────────
+var _demoMode=false;
+var undoStack=[], redoStack=[];
+function snapshot(label){
+  if(_demoMode)return;
+  var snap={label:label||'Aktion',nodes:JSON.parse(JSON.stringify(state.nodes)),relations:JSON.parse(JSON.stringify(state.relations)),nextId:state.nextId};
+  undoStack.push(snap);
+  if(undoStack.length>20)undoStack.shift();
+  redoStack=[];
+  updateUndoButtons();
+}
+function undo(){
+  if(!undoStack.length)return;
+  var cur={nodes:JSON.parse(JSON.stringify(state.nodes)),relations:JSON.parse(JSON.stringify(state.relations)),nextId:state.nextId};
+  redoStack.push(cur);
+  var snap=undoStack.pop();
+  applySnapshot(snap);
+  updateUndoButtons();
+  showMsg('Rückgängig: '+snap.label);
+}
+function redo(){
+  if(!redoStack.length)return;
+  var cur={nodes:JSON.parse(JSON.stringify(state.nodes)),relations:JSON.parse(JSON.stringify(state.relations)),nextId:state.nextId};
+  undoStack.push(cur);
+  var snap=redoStack.pop();
+  applySnapshot(snap);
+  updateUndoButtons();
+  showMsg('Wiederholt');
+}
+function applySnapshot(snap){
+  state.nodes=snap.nodes; state.relations=snap.relations; state.nextId=snap.nextId;
+  canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+  canvasSvg.innerHTML='';
+  state.nodes.forEach(function(n){renderNode(n);});
+  drawRelations(); updateHint(); refreshCodePanel();
+}
+function updateUndoButtons(){
+  var ub=document.getElementById('btn-undo'), rb=document.getElementById('btn-redo');
+  if(ub){ub.disabled=!undoStack.length;ub.style.opacity=undoStack.length?'1':'0.35';}
+  if(rb){rb.disabled=!redoStack.length;rb.style.opacity=redoStack.length?'1':'0.35';}
+  // show last undo label
+  if(ub&&undoStack.length) ub.title='Rückgängig: '+undoStack[undoStack.length-1].label;
+  else if(ub) ub.title='Nichts rückgängig zu machen';
+}
+
+// Base types without params — params added separately in UI
+const SQL_TYPES=['INT','BIGINT','SMALLINT','TINYINT','SERIAL','VARCHAR','TEXT','CHAR','BOOLEAN','FLOAT','DOUBLE','DECIMAL','DATE','DATETIME','TIMESTAMP','JSON','JSONB','UUID','BLOB','BYTEA','ENUM','ARRAY'];
+const SQL_PARAMS={'VARCHAR':'255','CHAR':'1','DECIMAL':'10,2','ENUM':'value1,value2','ARRAY':''};
+// Parse "VARCHAR(255)" → {base:'VARCHAR', param:'255'}
+function parseType(t){var m=(t||'').match(/^([A-Z0-9_]+)\(([^)]*)\)$/i);return m?{base:m[1].toUpperCase(),param:m[2]}:{base:(t||'').toUpperCase(),param:''};}
+// Format back: "VARCHAR" + "255" → "VARCHAR(255)"
+function formatType(base,param){base=(base||'').toUpperCase();if(param&&param.trim()){return base+'('+param.trim()+')';}return base;}
+const DOC_TYPES=['String','Number','Boolean','Date','ObjectId','Array','Object','Buffer','Mixed','Decimal128'];
+const PROP_TYPES=['String','Integer','Float','Boolean','Date','List','Map','Point'];
+const KV_TYPES=['String','Hash','List','Set','Sorted Set','Stream','HyperLogLog','Bitmap'];
+const TS_TYPES=['float','integer','boolean','string','unsigned'];
+const CF_TYPES=['text','int','bigint','boolean','float','double','decimal','timestamp','uuid','blob','list<text>','map<text,text>','set<text>','counter','frozen<text>'];
+const CF_PARAM_TYPES=['list','map','set','frozen','decimal','varchar'];// types that accept inline params already in angle brackets
+const REF_TYPES=['$ref (Referenced)','Embedded','DBRef','Array of Refs'];
+const FLOW_TYPES=['reads','writes','caches','invalidates','pub/sub','pipeline'];
+const AGG_TYPES=['mean','sum','count','max','min','last','median','percentile'];
+
+const SIDEBAR_CFG = {
+  relational:{
+    items:[{label:'Tabelle hinzufügen',icon:'▦',sub:'table'}],
+    legend:'<b>PK</b> = Primary Key<br><b>FK</b> = Foreign Key<br><b>NN</b> = Not Null<br><br>Punkt ziehen = Beziehung<br>PostgreSQL / MySQL / SQLite'
+  },
+  document:{
+    items:[
+      {label:'Collection hinzufügen',icon:'◎',sub:'collection'},
+      {label:'Index hinzufügen',icon:'⊡',sub:'doc-index'},
+    ],
+    legend:'<b>_id</b> = ObjectId (PK)<br><b>*</b> = Required<br><b>$ref</b> = Referenz auf andere Collection<br><b>Index</b> = Separates Index-Objekt<br><br>Pfeile = Referenz-Richtung<br>MongoDB / Firestore / CouchDB'
+  },
+  graph:{
+    items:[{label:'Node (Label)',icon:'●',sub:'graph-node'},{label:'Relationship (Edge)',icon:'↔',sub:'graph-edge'}],
+    legend:'<b>Node</b> = Entität<br><b>Edge</b> = Beziehung<br><br>Neo4j / ArangoDB / TigerGraph'
+  },
+  keyvalue:{
+    items:[
+      {label:'Namespace hinzufügen',icon:'⌗',sub:'namespace'},
+      {label:'Datenfluss hinzufügen',icon:'→',sub:'kv-flow'},
+    ],
+    legend:'<b>Pattern</b> = Key-Muster<br><b>Typ</b> = Redis-Struktur<br><b>TTL</b> = Ablaufzeit<br><b>→ Fluss</b> = Datenfluss zw. Namespaces<br><br>Redis / DragonflyDB / KeyDB'
+  },
+  timeseries:{
+    items:[
+      {label:'Measurement hinzufügen',icon:'~',sub:'measurement'},
+      {label:'Downsampling-Task',icon:'↓',sub:'ts-task'},
+    ],
+    legend:'<b>Tag</b> = Indexed Label<br><b>Field</b> = Messwert<br><b>Retention</b> = Aufbewahrung<br><b>Task</b> = Aggregations-Job<br><br>InfluxDB / TimescaleDB'
+  },
+  column:{
+    items:[
+      {label:'Tabelle hinzufügen',icon:'≡',sub:'column'},
+      {label:'Materialized View',icon:'◈',sub:'cf-view'},
+    ],
+    legend:'<b>PK</b> = Partition Key<br><b>CK</b> = Clustering Key<br><b>View</b> = Materialized View (Query-optimiert)<br><br>Cassandra / ScyllaDB'
+  }
+};
+
+// ── INIT ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  canvas = document.getElementById('canvas');
+  canvasSvg = document.getElementById('canvas-svg');
+  canvasWrap = document.getElementById('canvas-wrap');
+  setupTabs();
+  updateSidebar();
+  setupCanvasEvents();
+  setupCodePanel();
+  updateUndoButtons();
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();undo();}
+    if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();redo();}
+  });
+  setTimeout(loadDemo, 80);
+});
+
+function setupTabs() {
+  document.querySelectorAll('.dbtab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.dbtab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      state.dbType = tab.dataset.type;
+      activeCodeTab='';
+      updateSidebar();
+      refreshCodePanel();
+    });
+  });
+}
+
+function updateSidebar() {
+  var cfg = SIDEBAR_CFG[state.dbType];
+  var html = '<div class="sidebar-title">Elemente</div>';
+  cfg.items.forEach(function(item) {
+    html += '<button class="sidebar-add" onclick="addNode(\''+state.dbType+'\',\''+item.sub+'\')"><span class="ico">'+item.icon+'</span>'+item.label+'</button>';
+  });
+  document.getElementById('sidebar-content').innerHTML = html;
+  document.getElementById('sidebar-legend').innerHTML = cfg.legend;
+}
+
+// ── NODE FACTORY ──────────────────────────────────────
+function addNode(dbType, subtype) {
+  snapshot('Element hinzufügen');
+  var id = 'node_'+(state.nextId++);
+  var cx = (canvasWrap.clientWidth/2 - panX)/scale - 100 + (Math.random()-0.5)*100;
+  var cy = (canvasWrap.clientHeight/2 - panY)/scale - 80 + (Math.random()-0.5)*60;
+  var node = {id:id, type:dbType, subtype:subtype, x:cx, y:cy, data:getDefaultData(dbType,subtype)};
+  state.nodes.push(node);
+  renderNode(node);
+  updateHint();
+  return node;
+}
+
+function getDefaultData(dbType, subtype) {
+  if (subtype==='table') return {title:'neue_tabelle',columns:[
+    {name:'id',type:'INT',pk:true,fk:false,nn:true},
+    {name:'name',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+    {name:'created_at',type:'TIMESTAMP',pk:false,fk:false,nn:false}
+  ]};
+  if (subtype==='collection') return {title:'collection',fields:[
+    {key:'_id',type:'ObjectId',required:true,badge:'PK'},
+    {key:'name',type:'String',required:true},
+    {key:'email',type:'String',required:false},
+    {key:'metadata',type:'Object',required:false,nested:[
+      {key:'createdAt',type:'Date'},{key:'tags',type:'Array'}
+    ]}
+  ]};
+  if (subtype==='graph-node') return {title:'Person',props:[
+    {name:'id',type:'Integer'},{name:'name',type:'String'},{name:'age',type:'Integer'}
+  ]};
+  if (subtype==='graph-edge') return {title:'KNOWS',directed:true,props:[
+    {name:'since',type:'Date'},{name:'weight',type:'Float'}
+  ]};
+  if (subtype==='namespace') return {title:'user',keys:[
+    {pattern:'user:{id}:profile',type:'Hash',ttl:'—'},
+    {pattern:'user:{id}:sessions',type:'List',ttl:'24h'},
+    {pattern:'session:{token}',type:'String',ttl:'1h'}
+  ]};
+  if (subtype==='kv-flow') return {title:'Cache Flow',from:'cache',to:'user',type:'reads',label:'HGET user:{id}:profile'};
+  if (subtype==='measurement') return {title:'cpu_usage',retention:'30d',
+    tags:[{name:'host'},{name:'region'}],
+    fields:[{name:'usage_percent',type:'float'},{name:'load_avg',type:'float'}]
+  };
+  if (subtype==='ts-task') return {title:'cpu_5m_avg',every:'5m',offset:'0s',from:'cpu_usage',to:'cpu_downsampled',retention:'1y',
+    aggregations:[{field:'usage_percent',fn:'mean'},{field:'load_avg',fn:'mean'}]
+  };
+  if (subtype==='column') return {title:'events',
+    partitionKeys:[{name:'user_id',type:'uuid'}],
+    clusteringKeys:[{name:'event_time',type:'timestamp',order:'DESC'}],
+    columns:[{name:'event_type',type:'text'},{name:'payload',type:'blob'}]
+  };
+  if (subtype==='cf-view') return {title:'events_by_type',baseTable:'events',
+    partitionKeys:[{name:'event_type',type:'text'}],
+    clusteringKeys:[{name:'event_time',type:'timestamp',order:'DESC'}],
+    columns:[{name:'user_id',type:'uuid'},{name:'payload',type:'blob'}]
+  };
+  if (subtype==='doc-index') return {title:'users_email_idx',collection:'users',
+    fields:[{key:'email',direction:1,unique:true},{key:'createdAt',direction:-1,unique:false}],
+    sparse:false,background:true
+  };
+  return {title:subtype};
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderNode(node) {
+  var old = document.getElementById(node.id);
+  if (old) old.remove();
+  var el = document.createElement('div');
+  el.className='node'; el.id=node.id;
+  el.dataset.type=node.subtype;
+  el.style.left=node.x+'px'; el.style.top=node.y+'px';
+  el.innerHTML = buildNodeHTML(node);
+  canvas.appendChild(el);
+
+  el.addEventListener('mousedown', function(e) {
+    if (e.target.closest('input,select,button,.conn-dot')) return;
+    isDragging=true; dragNode=node;
+    el.classList.add('dragging');
+    var r=el.getBoundingClientRect();
+    dragOffX=e.clientX-r.left; dragOffY=e.clientY-r.top;
+    deselectAll(); el.classList.add('selected');
+    e.preventDefault();
+  });
+
+  el.querySelectorAll('.node-title').forEach(function(inp) {
+    inp.addEventListener('input',function(){node.data.title=inp.value;});
+    inp.addEventListener('mousedown',function(e){e.stopPropagation();});
+    inp.addEventListener('keydown',function(e){e.stopPropagation();});
+  });
+
+  el.querySelectorAll('.conn-dot').forEach(function(dot) {
+    dot.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      var colName=dot.dataset.col;
+      if (connectingFrom) {
+        if (connectingFrom.nodeId!==node.id) {
+          addRelation(connectingFrom.nodeId,connectingFrom.colName,node.id,colName);
+        }
+        connectingFrom.dotEl.style.background='';
+        connectingFrom=null; clearTempLine();
+      } else {
+        connectingFrom={nodeId:node.id,colName:colName,dotEl:dot};
+        dot.style.background='var(--green)';
+      }
+    });
+  });
+}
+
+function buildNodeHTML(node) {
+  var d=node.data, icon='▦', body='';
+  if (node.subtype==='table') {
+    icon='▦';
+    body=d.columns.map(function(col){
+      var badge=col.pk?'<span class="col-badge col-pk">PK</span>':
+                col.fk?'<span class="col-badge col-fk">FK</span>':
+                       '<span class="col-empty"></span>';
+      return '<div class="col-row">'+badge+
+        '<span class="col-name">'+esc(col.name)+'</span>'+
+        '<span class="col-type">'+esc(col.type)+'</span>'+
+        (col.nn?'<span class="col-nn">NN</span>':'')+
+        '<span class="conn-dot" data-col="'+esc(col.name)+'" title="Verbindung ziehen"></span>'+
+        '</div>';
+    }).join('')+'<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Spalte / bearbeiten</button>';
+  } else if (node.subtype==='collection') {
+    icon='◎';
+    body=renderDocFields(d.fields)+'<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Feld / bearbeiten</button>';
+  } else if (node.subtype==='graph-node') {
+    icon='●';
+    body=d.props.map(function(p){return '<div class="prop-row"><span class="prop-key">'+esc(p.name)+'</span><span class="prop-type">'+esc(p.type)+'</span></div>';}).join('')+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Property / bearbeiten</button>';
+  } else if (node.subtype==='graph-edge') {
+    icon='↔';
+    // collect available node labels for display
+    var fromLabel=d.fromLabel||'?', toLabel=d.toLabel||'?';
+    var arrow=d.directed
+      ? '<span style="color:var(--clr-graph);font-weight:700">('+esc(fromLabel)+')</span><span style="color:var(--text3);margin:0 4px">──→</span><span style="color:var(--clr-graph);font-weight:700">('+esc(toLabel)+')</span>'
+      : '<span style="color:var(--clr-graph);font-weight:700">('+esc(fromLabel)+')</span><span style="color:var(--text3);margin:0 4px">───</span><span style="color:var(--clr-graph);font-weight:700">('+esc(toLabel)+')</span>';
+    body='<div style="padding:5px 10px 4px;display:flex;align-items:center;gap:4px;font-size:10.5px;border-bottom:1px solid var(--border);background:rgba(176,79,247,.05)">'+arrow+'</div>'+
+      d.props.map(function(p){return '<div class="prop-row"><span class="prop-key">'+esc(p.name)+'</span><span class="prop-type">'+esc(p.type)+'</span></div>';}).join('')+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Property / bearbeiten</button>';
+  } else if (node.subtype==='namespace') {
+    icon='⌗';
+    body=d.keys.map(function(k){return '<div class="kv-row"><span class="kv-pattern">'+esc(k.pattern)+'</span><span class="kv-type">'+esc(k.type)+'</span><span class="kv-ttl">'+esc(k.ttl)+'</span></div>';}).join('')+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Key Pattern / bearbeiten</button>';
+  } else if (node.subtype==='kv-flow') {
+    icon='→';
+    body='<div style="padding:4px 10px 3px;font-size:10px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)">'+
+      '<span style="color:var(--clr-keyvalue);font-weight:700">'+esc(d.from||'?')+'</span>'+
+      '<span style="color:var(--text3)"> '+esc(d.type||'→')+' </span>'+
+      '<span style="color:var(--clr-keyvalue);font-weight:700">'+esc(d.to||'?')+'</span></div>'+
+      '<div style="padding:3px 10px;font-size:10px;color:var(--text3);font-style:italic">'+esc(d.label||'')+'</div>'+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">bearbeiten</button>';
+  } else if (node.subtype==='measurement') {
+    icon='~';
+    body='<div class="ts-retention">retention: '+esc(d.retention)+'</div>'+
+      '<div class="ts-section">Tags</div>'+
+      d.tags.map(function(t){return '<div class="ts-row"><span class="ts-icon" style="color:var(--red)">T</span><span class="ts-name">'+esc(t.name)+'</span><span class="ts-type">string</span></div>';}).join('')+
+      '<div class="ts-section">Fields</div>'+
+      d.fields.map(function(f){return '<div class="ts-row"><span class="ts-icon" style="color:var(--text3)">F</span><span class="ts-name">'+esc(f.name)+'</span><span class="ts-type">'+esc(f.type)+'</span></div>';}).join('')+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Tag/Field / bearbeiten</button>';
+  } else if (node.subtype==='ts-task') {
+    icon='↓';
+    body='<div style="padding:3px 10px 0;font-size:10px;border-bottom:1px solid var(--border);padding-bottom:5px">'+
+      '<span style="color:var(--clr-timeseries)">'+esc(d.from||'?')+'</span>'+
+      '<span style="color:var(--text3)"> → </span>'+
+      '<span style="color:var(--clr-timeseries)">'+esc(d.to||'?')+'</span></div>'+
+      '<div class="ts-section">Aggregations</div>'+
+      (d.aggregations||[]).map(function(a){return '<div class="ts-row"><span class="ts-icon" style="color:var(--clr-timeseries)">∑</span><span class="ts-name">'+esc(a.field)+'</span><span class="ts-type">'+esc(a.fn)+'</span></div>';}).join('')+
+      '<div style="padding:3px 10px;font-size:9px;color:var(--text3)">every '+esc(d.every||'5m')+' · retention '+esc(d.retention||'∞')+'</div>'+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">bearbeiten</button>';
+  } else if (node.subtype==='doc-index') {
+    icon='⊡';
+    body='<div style="padding:2px 10px 4px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">on: <span style="color:var(--clr-document)">'+esc(d.collection||'?')+'</span>'+
+      (d.sparse?' · sparse':'')+(d.background?' · background':'')+'</div>'+
+      (d.fields||[]).map(function(f){return '<div class="doc-field"><span class="doc-key">'+esc(f.key)+'</span>'+
+        '<span class="doc-type">'+(f.direction===1?'ASC':'DESC')+'</span>'+
+        (f.unique?'<span class="doc-badge">UNIQUE</span>':'')+'</div>';}).join('')+
+      '<button class="add-row-btn" onclick="editNode(\''+node.id+'\')">bearbeiten</button>';
+  } else if (node.subtype==='column') {
+    icon='≡';
+    body='<div class="cf-pk-section"><div class="cf-pk-label">Partition Key</div>'+
+      d.partitionKeys.map(function(k){return '<div class="cf-col-row"><span class="cf-col-name cf-pk-key">'+esc(k.name)+'</span><span class="cf-col-type">'+esc(k.type)+'</span></div>';}).join('')+
+      '</div>';
+    if (d.clusteringKeys.length) body+='<div class="cf-cluster-label">Clustering Key</div>'+
+      d.clusteringKeys.map(function(k){return '<div class="cf-col-row"><span class="cf-col-name" style="color:var(--cyan);opacity:.7">'+esc(k.name)+'</span><span class="cf-col-type">'+esc(k.type)+'</span><span class="cf-col-type" style="color:var(--clr-timeseries)">'+esc(k.order)+'</span></div>';}).join('');
+    body+='<div style="border-top:1px solid var(--border);margin-top:3px;padding-top:2px">'+
+      d.columns.map(function(c){return '<div class="cf-col-row"><span class="cf-col-name">'+esc(c.name)+'</span><span class="cf-col-type">'+esc(c.type)+'</span></div>';}).join('')+
+      '</div><button class="add-row-btn" onclick="editNode(\''+node.id+'\')">+ Spalte / bearbeiten</button>';
+  } else if (node.subtype==='cf-view') {
+    icon='◈';
+    body='<div style="padding:3px 10px 4px;font-size:10px;border-bottom:1px solid var(--border)">'+
+      'VIEW OF: <span style="color:var(--clr-column);font-weight:700">'+esc(d.baseTable||'?')+'</span></div>'+
+      '<div class="cf-pk-section"><div class="cf-pk-label">Partition Key</div>'+
+      (d.partitionKeys||[]).map(function(k){return '<div class="cf-col-row"><span class="cf-col-name cf-pk-key">'+esc(k.name)+'</span><span class="cf-col-type">'+esc(k.type)+'</span></div>';}).join('')+
+      '</div>'+
+      '<div style="border-top:1px solid var(--border);margin-top:3px;padding-top:2px">'+
+      (d.columns||[]).map(function(c){return '<div class="cf-col-row"><span class="cf-col-name">'+esc(c.name)+'</span><span class="cf-col-type">'+esc(c.type)+'</span></div>';}).join('')+
+      '</div><button class="add-row-btn" onclick="editNode(\''+node.id+'\')">bearbeiten</button>';
+  }
+
+  return '<div class="node-header"><span class="node-header-icon">'+icon+'</span>'+
+    '<input class="node-title" value="'+esc(d.title)+'" spellcheck="false">'+
+    '<button class="node-del" onclick="deleteNode(\''+node.id+'\')">✕</button></div>'+
+    '<div class="node-body">'+body+'</div>';
+}
+
+function renderDocFields(fields, indent) {
+  indent=indent||0;
+  return fields.map(function(f){
+    var html='<div class="doc-field" style="padding-left:'+(10+indent*14)+'px">'+
+      '<span class="doc-key">'+esc(f.key)+'</span>'+
+      '<span class="doc-type">'+esc(f.type)+'</span>'+
+      (f.badge?'<span class="doc-badge">'+esc(f.badge)+'</span>':'')+
+      (f.required?'<span style="color:var(--red);font-size:9px">*</span>':'')+
+      '</div>';
+    if (f.nested&&f.nested.length) html+=renderDocFields(f.nested,indent+1);
+    return html;
+  }).join('');
+}
+
+// ── RELATIONS ─────────────────────────────────────────
+function addRelation(fromId,fromCol,toId,toCol) {
+  snapshot('Verbindung erstellen');
+  state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:fromId,fromCol:fromCol,toNodeId:toId,toCol:toCol});
+  drawRelations();
+  refreshCodePanel();
+  showMsg('Verbindung erstellt');
+}
+
+function drawRelations() {
+  canvasSvg.innerHTML='';
+  var defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML=
+    '<marker id="arr" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4 z" fill="rgba(79,142,247,.9)"/></marker>'+
+    '<marker id="arr-graph-to" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4 z" fill="rgba(176,79,247,1)"/></marker>'+
+    '<marker id="arr-doc" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5 z" fill="rgba(61,232,160,.9)"/></marker>'+
+    '<marker id="arr-ts" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5 z" fill="rgba(247,79,106,.9)"/></marker>'+
+    '<marker id="arr-cf" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L9,3.5 z" fill="rgba(79,240,247,.9)"/></marker>';
+  canvasSvg.appendChild(defs);
+
+  state.relations.forEach(function(rel) {
+    var fromEl=document.getElementById(rel.fromNodeId);
+    var toEl=document.getElementById(rel.toNodeId);
+    if (!fromEl||!toEl) return;
+
+    if(rel.docRef){
+      var fpc=getNodeCenter(fromEl), tpc=getNodeCenter(toEl);
+      var fpb=getNodeBorderPoint(fromEl,tpc.x,tpc.y), tpb=getNodeBorderPoint(toEl,fpc.x,fpc.y);
+      var pr=document.createElementNS('http://www.w3.org/2000/svg','path');
+      var ddx=(tpb.x-fpb.x)*0.4;
+      pr.setAttribute('d','M'+fpb.x+','+fpb.y+' C'+(fpb.x+ddx)+','+fpb.y+' '+(tpb.x-ddx)+','+tpb.y+' '+tpb.x+','+tpb.y);
+      pr.setAttribute('fill','none'); pr.setAttribute('stroke','rgba(61,232,160,.7)'); pr.setAttribute('stroke-width','1.8');
+      pr.setAttribute('stroke-dasharray','6,3'); pr.setAttribute('marker-end','url(#arr-doc)');
+      pr.style.pointerEvents='stroke';pr.style.cursor='pointer';
+      pr.addEventListener('click',(function(r){return function(){if(confirm('Verbindung löschen?')){snapshot('Verbindung löschen');state.relations=state.relations.filter(function(x){return x.id!==r.id;});drawRelations();refreshCodePanel();}};})(rel));
+      canvasSvg.appendChild(pr); return;
+    }
+    if(rel.tsLink){
+      var fpt=getNodeCenter(fromEl), tpt=getNodeCenter(toEl);
+      var fpbt=getNodeBorderPoint(fromEl,tpt.x,tpt.y), tpbt=getNodeBorderPoint(toEl,fpt.x,fpt.y);
+      var pt=document.createElementNS('http://www.w3.org/2000/svg','path');
+      var dtx=(tpbt.x-fpbt.x)*0.4, dty=(tpbt.y-fpbt.y)*0.4;
+      pt.setAttribute('d','M'+fpbt.x+','+fpbt.y+' C'+(fpbt.x+dtx)+','+(fpbt.y+dty)+' '+(tpbt.x-dtx)+','+(tpbt.y-dty)+' '+tpbt.x+','+tpbt.y);
+      pt.setAttribute('fill','none'); pt.setAttribute('stroke',rel.isTo?'rgba(247,79,106,.85)':'rgba(247,79,106,.4)');
+      pt.setAttribute('stroke-width','1.8'); pt.setAttribute('stroke-dasharray',rel.isTo?'none':'5,3');
+      if(rel.isTo) pt.setAttribute('marker-end','url(#arr-ts)');
+      pt.style.pointerEvents='stroke';pt.style.cursor='pointer';
+      pt.addEventListener('click',(function(r){return function(){if(confirm('Verbindung löschen?')){snapshot('Verbindung löschen');state.relations=state.relations.filter(function(x){return x.id!==r.id;});drawRelations();refreshCodePanel();}};})(rel));
+      canvasSvg.appendChild(pt); return;
+    }
+    if(rel.cfViewLink){
+      var fpcf=getNodeCenter(fromEl), tpcf=getNodeCenter(toEl);
+      var fpbcf=getNodeBorderPoint(fromEl,tpcf.x,tpcf.y), tpbcf=getNodeBorderPoint(toEl,fpcf.x,fpcf.y);
+      var pcf=document.createElementNS('http://www.w3.org/2000/svg','path');
+      var dcfx=(tpbcf.x-fpbcf.x)*0.4;
+      pcf.setAttribute('d','M'+fpbcf.x+','+fpbcf.y+' C'+(fpbcf.x+dcfx)+','+fpbcf.y+' '+(tpbcf.x-dcfx)+','+tpbcf.y+' '+tpbcf.x+','+tpbcf.y);
+      pcf.setAttribute('fill','none'); pcf.setAttribute('stroke','rgba(79,240,247,.65)'); pcf.setAttribute('stroke-width','1.8');
+      pcf.setAttribute('stroke-dasharray','4,3'); pcf.setAttribute('marker-end','url(#arr-cf)');
+      pcf.style.pointerEvents='stroke';pcf.style.cursor='pointer';
+      pcf.addEventListener('click',(function(r){return function(){if(confirm('Verbindung löschen?')){snapshot('Verbindung löschen');state.relations=state.relations.filter(function(x){return x.id!==r.id;});drawRelations();refreshCodePanel();}};})(rel));
+      canvasSvg.appendChild(pcf); return;
+    }
+
+    if(rel.graphLink){
+      var ec=getNodeCenter(fromEl);   // edge card center
+      var nc=getNodeCenter(toEl);     // node card center
+      // find actual border intersection points
+      var fp2=getNodeBorderPoint(fromEl, nc.x, nc.y);
+      var tp2=getNodeBorderPoint(toEl,   ec.x, ec.y);
+      var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      // slight curve
+      var mdx=(tp2.x-fp2.x)*0.35, mdy=(tp2.y-fp2.y)*0.35;
+      path.setAttribute('d','M'+fp2.x+','+fp2.y+' C'+(fp2.x+mdx)+','+(fp2.y+mdy)+' '+(tp2.x-mdx)+','+(tp2.y-mdy)+' '+tp2.x+','+tp2.y);
+      path.setAttribute('fill','none');
+      if(rel.isTo){
+        path.setAttribute('stroke','rgba(176,79,247,.85)');
+        path.setAttribute('stroke-width','2');
+        if(rel.directed) path.setAttribute('marker-end','url(#arr-graph-to)');
+      } else {
+        // "from" connector: dashed, thinner
+        path.setAttribute('stroke','rgba(176,79,247,.4)');
+        path.setAttribute('stroke-width','1.5');
+        path.setAttribute('stroke-dasharray','5,3');
+      }
+      path.style.pointerEvents='stroke';path.style.cursor='pointer';
+      path.addEventListener('click',(function(r){return function(){if(confirm('Verbindung löschen?')){snapshot('Verbindung löschen');state.relations=state.relations.filter(function(x){return x.id!==r.id;});drawRelations();refreshCodePanel();}};})(rel));
+      canvasSvg.appendChild(path);
+      return;
+    }
+
+    var dot=fromEl.querySelector('.conn-dot[data-col="'+CSS.escape(rel.fromCol)+'"]');
+    if (!dot) return;
+    // to: try exact col dot, else first dot on the node
+    var toDot=toEl.querySelector('.conn-dot[data-col="'+CSS.escape(rel.toCol)+'"]')
+              ||toEl.querySelector('.conn-dot');
+    var fp=getDotPos(dot);
+    var tp=toDot ? getDotPos(toDot) : getNodeCenter(toEl);
+    // route: exit right side of from-node, enter left side of to-node
+    var fromNodeEl=fromEl;
+    var toNodeEl=toEl;
+    var fRight=(fromNodeEl.getBoundingClientRect().right - canvasWrap.getBoundingClientRect().left - panX)/scale;
+    var tLeft=(toNodeEl.getBoundingClientRect().left   - canvasWrap.getBoundingClientRect().left - panX)/scale;
+    var fx=fRight, fy=fp.y;
+    var tx=tLeft,  ty=tp.y;
+    var dx=Math.abs(tx-fx)*0.5;
+    // shorten tx by marker size so arrowhead lands at border
+    var markerLen=10/scale;
+    var dirX=tx>fx?-markerLen:markerLen;
+    var txAdj=tx+dirX;
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d','M'+fx+','+fy+' C'+(fx+dx)+','+fy+' '+(txAdj-dx)+','+ty+' '+txAdj+','+ty);
+    path.setAttribute('class','rel-line');
+    path.setAttribute('marker-end','url(#arr)');
+    path.dataset.relId=rel.id;
+    path.style.pointerEvents='stroke';
+    path.addEventListener('click',function(){
+      if(confirm('Verbindung löschen?')){
+        snapshot('Verbindung löschen');
+        state.relations=state.relations.filter(function(r){return r.id!==rel.id;});
+        drawRelations();
+        refreshCodePanel();
+      }
+    });
+    canvasSvg.appendChild(path);
+  });
+}
+
+function getDotPos(el) {
+  var r=el.getBoundingClientRect(), cr=canvasWrap.getBoundingClientRect();
+  return {x:(r.left+r.width/2-cr.left-panX)/scale, y:(r.top+r.height/2-cr.top-panY)/scale};
+}
+function getNodeCenter(el) {
+  var r=el.getBoundingClientRect(), cr=canvasWrap.getBoundingClientRect();
+  return {x:(r.left+r.width/2-cr.left-panX)/scale, y:(r.top+r.height/2-cr.top-panY)/scale};
+}
+// Returns the point on the border of el closest to (tx,ty)
+function getNodeBorderPoint(el, tx, ty){
+  var r=el.getBoundingClientRect(), cr=canvasWrap.getBoundingClientRect();
+  var cx=(r.left+r.width/2-cr.left-panX)/scale;
+  var cy=(r.top+r.height/2-cr.top-panY)/scale;
+  var hw=r.width/2/scale, hh=r.height/2/scale;
+  var dx=tx-cx, dy=ty-cy;
+  if(dx===0&&dy===0) return {x:cx,y:cy};
+  var scaleX=dx!==0?Math.abs(hw/dx):Infinity;
+  var scaleY=dy!==0?Math.abs(hh/dy):Infinity;
+  var s=Math.min(scaleX,scaleY);
+  return {x:cx+dx*s, y:cy+dy*s};
+}
+
+var tempLine=null;
+function clearTempLine(){if(tempLine){tempLine.remove();tempLine=null;}}
+
+// ── DRAG / PAN / ZOOM ─────────────────────────────────
+function setupCanvasEvents() {
+  document.addEventListener('mousemove',function(e){
+    if (isDragging&&dragNode) {
+      var wr=canvasWrap.getBoundingClientRect();
+      dragNode.x=(e.clientX-wr.left-panX-dragOffX)/scale;
+      dragNode.y=(e.clientY-wr.top-panY-dragOffY)/scale;
+      var el=document.getElementById(dragNode.id);
+      if(el){el.style.left=dragNode.x+'px';el.style.top=dragNode.y+'px';}
+      drawRelations();
+    }
+    if (isPanning){panX=panStartPanX+(e.clientX-panStartX);panY=panStartPanY+(e.clientY-panStartY);applyTransform();}
+    if (connectingFrom){
+      clearTempLine();
+      var wr=canvasWrap.getBoundingClientRect();
+      var mx=(e.clientX-wr.left-panX)/scale, my=(e.clientY-wr.top-panY)/scale;
+      var fp=getDotPos(connectingFrom.dotEl);
+      tempLine=document.createElementNS('http://www.w3.org/2000/svg','line');
+      tempLine.setAttribute('x1',fp.x);tempLine.setAttribute('y1',fp.y);
+      tempLine.setAttribute('x2',mx);tempLine.setAttribute('y2',my);
+      tempLine.setAttribute('stroke','var(--green)');tempLine.setAttribute('stroke-width','1.5');
+      tempLine.setAttribute('stroke-dasharray','5,3');
+      canvasSvg.appendChild(tempLine);
+    }
+  });
+  document.addEventListener('mouseup',function(){
+    if(isDragging&&dragNode){document.getElementById(dragNode.id)&&document.getElementById(dragNode.id).classList.remove('dragging');isDragging=false;dragNode=null;}
+    isPanning=false;
+  });
+  canvasWrap.addEventListener('mousedown',function(e){
+    if(e.target===canvasWrap||e.target===canvas||e.target===canvasSvg){
+      if(connectingFrom){connectingFrom.dotEl.style.background='';connectingFrom=null;clearTempLine();return;}
+      isPanning=true;panStartX=e.clientX;panStartY=e.clientY;panStartPanX=panX;panStartPanY=panY;
+      deselectAll();
+    }
+  });
+  canvasWrap.addEventListener('wheel',function(e){
+    e.preventDefault();
+    var r=canvasWrap.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+    var d=e.deltaY>0?0.9:1.1, ns=Math.min(Math.max(scale*d,0.2),3);
+    panX=mx-(mx-panX)*(ns/scale); panY=my-(my-panY)*(ns/scale); scale=ns; applyTransform();
+  },{passive:false});
+}
+
+function applyTransform(){
+  canvas.style.transform='translate('+panX+'px,'+panY+'px) scale('+scale+')';
+  canvasSvg.style.transform='translate('+panX+'px,'+panY+'px) scale('+scale+')';
+  document.getElementById('zoom-info').textContent=Math.round(scale*100)+'%';
+}
+function zoomReset(){scale=1;panX=60;panY=60;applyTransform();}
+function deselectAll(){document.querySelectorAll('.node.selected').forEach(function(n){n.classList.remove('selected');});}
+function deleteNode(id){
+  snapshot('Element löschen');
+  state.nodes=state.nodes.filter(function(n){return n.id!==id;});
+  state.relations=state.relations.filter(function(r){return r.fromNodeId!==id&&r.toNodeId!==id;});
+  var el=document.getElementById(id); if(el)el.remove();
+  drawRelations(); updateHint(); refreshCodePanel();
+}
+function clearCanvas(){
+  if(!confirm('Alle Elemente löschen?'))return;
+  snapshot('Canvas leeren');
+  state.nodes=[];state.relations=[];
+  canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+  canvasSvg.innerHTML=''; updateHint();
+}
+function updateHint(){
+  var h=document.getElementById('canvas-hint');
+  if(h)h.style.display=state.nodes.length?'none':'block';
+}
+function autoLayout(){
+  if(state.dbType==='graph') { autoLayoutGraph(); return; }
+  if(state.dbType==='keyvalue') { autoLayoutKV(); return; }
+  autoLayoutRelational();
+}
+
+// ── KEY-VALUE: grid layout, namespaces close together ──
+function autoLayoutKV(){
+  var nodes=state.nodes;
+  if(!nodes.length) return;
+  var NS_W=210, NS_H=160, FLOW_W=200, FLOW_H=80;
+  var COLS=3, GAP_X=30, GAP_Y=30;
+
+  var namespaces=nodes.filter(function(n){return n.subtype==='namespace';});
+  var flows=nodes.filter(function(n){return n.subtype==='kv-flow';});
+
+  // grid for namespaces
+  namespaces.forEach(function(n,i){
+    var col=i%COLS, row=Math.floor(i/COLS);
+    n.x=40+col*(NS_W+GAP_X);
+    n.y=40+row*(NS_H+GAP_Y);
+    var el=document.getElementById(n.id);
+    if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}
+  });
+
+  // flows below namespace grid
+  var nsRows=Math.ceil(namespaces.length/COLS);
+  var flowStartY=40+nsRows*(NS_H+GAP_Y)+40;
+  flows.forEach(function(n,i){
+    n.x=40+i*(FLOW_W+GAP_X);
+    n.y=flowStartY;
+    var el=document.getElementById(n.id);
+    if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}
+  });
+
+  drawRelations();
+  var allX=nodes.map(function(n){return n.x;}), allY=nodes.map(function(n){return n.y;});
+  var minX=Math.min.apply(null,allX), minY=Math.min.apply(null,allY);
+  var maxX=Math.max.apply(null,nodes.map(function(n){return n.x+240;}));
+  var maxY=Math.max.apply(null,nodes.map(function(n){return n.y+200;}));
+  var scaleX=(canvasWrap.clientWidth-80)/(maxX-minX||1);
+  var scaleY=(canvasWrap.clientHeight-80)/(maxY-minY||1);
+  scale=Math.min(1, scaleX, scaleY);
+  panX=40-minX*scale; panY=40-minY*scale;
+  applyTransform();
+}
+
+// ── RELATIONAL: Sugiyama-style layered layout ──────────
+function autoLayoutRelational(){
+  var nodes=state.nodes;
+  if(!nodes.length) return;
+  var W=240, H=220, PAD_X=130, PAD_Y=70;
+
+  // Build adjacency: fromNodeId → toNodeId
+  var outEdges={}, inEdges={};
+  nodes.forEach(function(n){ outEdges[n.id]=[]; inEdges[n.id]=[]; });
+  state.relations.forEach(function(r){
+    if(r.graphLink) return;
+    if(outEdges[r.fromNodeId]) outEdges[r.fromNodeId].push(r.toNodeId);
+    if(inEdges[r.toNodeId])    inEdges[r.toNodeId].push(r.fromNodeId);
+  });
+
+  // Assign layers via longest-path from sources
+  var layer={};
+  var visited={};
+  function assignLayer(id, d){
+    if(layer[id]===undefined || layer[id]<d) layer[id]=d;
+    if(visited[id]) return; visited[id]=true;
+    outEdges[id].forEach(function(tid){ assignLayer(tid, d+1); });
+  }
+  // sources = nodes with no incoming edges
+  nodes.forEach(function(n){
+    if(!inEdges[n.id]||inEdges[n.id].length===0) assignLayer(n.id,0);
+  });
+  // fallback for disconnected
+  nodes.forEach(function(n){ if(layer[n.id]===undefined) layer[n.id]=0; });
+
+  // Group by layer
+  var layers={};
+  nodes.forEach(function(n){
+    var l=layer[n.id]||0;
+    if(!layers[l]) layers[l]=[];
+    layers[l].push(n);
+  });
+
+  // Sort each layer to minimize crossings (barycenter heuristic)
+  var layerKeys=Object.keys(layers).map(Number).sort(function(a,b){return a-b;});
+  layerKeys.forEach(function(l, li){
+    if(li===0) return;
+    var prevLayer=layers[layerKeys[li-1]];
+    var prevPos={};
+    prevLayer.forEach(function(n,i){ prevPos[n.id]=i; });
+    layers[l].sort(function(a,b){
+      var aParents=inEdges[a.id]||[], bParents=inEdges[b.id]||[];
+      var aAvg=aParents.length ? aParents.reduce(function(s,p){return s+(prevPos[p]||0);},0)/aParents.length : 0;
+      var bAvg=bParents.length ? bParents.reduce(function(s,p){return s+(prevPos[p]||0);},0)/bParents.length : 0;
+      return aAvg-bAvg;
+    });
+  });
+
+  // Position nodes
+  layerKeys.forEach(function(l, li){
+    var col=layers[l];
+    var totalH=col.length*H + (col.length-1)*PAD_Y;
+    var startY=Math.max(PAD_Y, 400/2 - totalH/2);
+    col.forEach(function(n, ni){
+      n.x=PAD_X + li*(W+PAD_X);
+      n.y=startY + ni*(H+PAD_Y);
+      var el=document.getElementById(n.id);
+      if(el){el.style.left=n.x+'px'; el.style.top=n.y+'px';}
+    });
+  });
+
+  // Run 3 passes of force-repulsion to spread overlapping nodes within same layer
+  for(var iter=0;iter<6;iter++){
+    layerKeys.forEach(function(l){
+      var col=layers[l];
+      for(var i=0;i<col.length-1;i++){
+        var a=col[i], b=col[i+1];
+        var gap=b.y-(a.y+H);
+        if(gap<PAD_Y){
+          var push=(PAD_Y-gap)/2;
+          a.y-=push; b.y+=push;
+          var ela=document.getElementById(a.id), elb=document.getElementById(b.id);
+          if(ela) ela.style.top=a.y+'px';
+          if(elb) elb.style.top=b.y+'px';
+        }
+      }
+    });
+  }
+
+  drawRelations();
+  // fit view
+  var maxX=0, maxY=0;
+  nodes.forEach(function(n){ maxX=Math.max(maxX,n.x+W); maxY=Math.max(maxY,n.y+H); });
+  scale=Math.min(1, Math.min((canvasWrap.clientWidth-80)/maxX, (canvasWrap.clientHeight-80)/maxY));
+  panX=40; panY=40;
+  applyTransform();
+}
+
+// ── GRAPH: place nodes in circle, edges midway ─────────
+function autoLayoutGraph(){
+  var gnodes=state.nodes.filter(function(n){return n.subtype==='graph-node';});
+  var gedges=state.nodes.filter(function(n){return n.subtype==='graph-edge';});
+
+  var cx=600, cy=380, r=Math.max(300, gnodes.length*160);
+  // Place graph-nodes in a circle
+  gnodes.forEach(function(n,i){
+    var angle=(2*Math.PI*i/gnodes.length) - Math.PI/2;
+    n.x=cx+Math.cos(angle)*r - 85;
+    n.y=cy+Math.sin(angle)*r - 60;
+    var el=document.getElementById(n.id);
+    if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}
+  });
+
+  // Place each edge card at midpoint between its from/to nodes + perpendicular offset
+  gedges.forEach(function(e,i){
+    var fl=e.data.fromLabel, tl=e.data.toLabel;
+    var fn=state.nodes.find(function(n){return n.subtype==='graph-node'&&n.data.title===fl;});
+    var tn=state.nodes.find(function(n){return n.subtype==='graph-node'&&n.data.title===tl;});
+    var mx, my;
+    if(fn&&tn&&fn.id===tn.id){
+      // Self-loop: place card outward from circle center relative to the node
+      var nx=fn.x+85, ny=fn.y+60;
+      var outDx=nx-cx, outDy=ny-cy, outLen=Math.sqrt(outDx*outDx+outDy*outDy)||1;
+      // find other self-loops on same node
+      var selfLoops=gedges.filter(function(e2){return e2.data.fromLabel===fl&&e2.data.toLabel===tl;});
+      var idx2=selfLoops.indexOf(e);
+      mx=nx+(outDx/outLen)*(200+idx2*160);
+      my=ny+(outDy/outLen)*(200+idx2*160);
+    } else if(fn&&tn){
+      mx=(fn.x+85+tn.x+85)/2; my=(fn.y+60+tn.y+60)/2;
+      var dx=tn.x-fn.x, dy=tn.y-fn.y, len=Math.sqrt(dx*dx+dy*dy)||1;
+      var perp={x:-dy/len, y:dx/len};
+      var sameEdges=gedges.filter(function(e2){
+        return (e2.data.fromLabel===fl&&e2.data.toLabel===tl)||(e2.data.fromLabel===tl&&e2.data.toLabel===fl);
+      });
+      var idx=sameEdges.indexOf(e);
+      var offset=(idx-(sameEdges.length-1)/2)*130;
+      mx+=perp.x*offset; my+=perp.y*offset;
+    } else {
+      mx=120+i*240; my=cy+r+160;
+    }
+    e.x=mx-85; e.y=my-50;
+    var el=document.getElementById(e.id);
+    if(el){el.style.left=e.x+'px';el.style.top=e.y+'px';}
+  });
+
+  // Rebuild graph links after repositioning so arrows are accurate
+  state.relations=state.relations.filter(function(r){return !r.graphLink;});
+  gedges.forEach(function(edge){
+    var fl2=edge.data.fromLabel, tl2=edge.data.toLabel;
+    function findGN2(t){return state.nodes.find(function(n){return n.data.title===t&&n.subtype==='graph-node';});}
+    var fn2=fl2?findGN2(fl2):null, tn2=tl2?findGN2(tl2):null;
+    if(fn2) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:edge.id,fromCol:'__graph__',toNodeId:fn2.id,toCol:'__graph__',graphLink:true,directed:edge.data.directed,isFrom:true});
+    if(tn2) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:edge.id,fromCol:'__graph2__',toNodeId:tn2.id,toCol:'__graph2__',graphLink:true,directed:edge.data.directed,isTo:true});
+  });
+
+  drawRelations();
+  // fit to content
+  var minX=Infinity,minY=Infinity,maxX=0,maxY=0;
+  state.nodes.forEach(function(n){
+    minX=Math.min(minX,n.x); minY=Math.min(minY,n.y);
+    maxX=Math.max(maxX,n.x+200); maxY=Math.max(maxY,n.y+160);
+  });
+  var padX=60,padY=60;
+  var scaleX=(canvasWrap.clientWidth-padX*2)/(maxX-minX||1);
+  var scaleY=(canvasWrap.clientHeight-padY*2)/(maxY-minY||1);
+  scale=Math.min(0.9, scaleX, scaleY);
+  panX=padX-minX*scale; panY=padY-minY*scale;
+  applyTransform();
+}
+
+// ── EDIT MODAL ────────────────────────────────────────
+function editNode(id) {
+  var node=state.nodes.find(function(n){return n.id===id;});
+  if(!node)return;
+  var d=node.data, inner='';
+
+  if (node.subtype==='table') {
+    // build list of other tables and their PK columns for FK reference picker
+    var otherTables=state.nodes.filter(function(n){return n.subtype==='table'&&n.id!==node.id;});
+    var refOpts='<option value="">— keine —</option>';
+    otherTables.forEach(function(t){
+      t.data.columns.filter(function(c){return c.pk;}).forEach(function(c){
+        var val=t.data.title+'.'+c.name;
+        refOpts+='<option value="'+esc(val)+'">'+esc(t.data.title)+'.'+esc(c.name)+'</option>';
+      });
+    });
+    inner='<div class="form-row"><span class="form-label">Tabellenname</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Spalten:</div><div id="et-cols">'+
+      d.columns.map(function(col,i){return makeRelRow(col,i,refOpts);}).join('')+
+      '</div><button class="add-row-btn" style="margin-top:5px" onclick="addRelEditRow(\'et-cols\',\''+esc(node.id)+'\')">+ Spalte</button>';
+  } else if (node.subtype==='collection') {
+    inner='<div class="form-row"><span class="form-label">Collection</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Felder:</div><div id="et-cols">'+
+      d.fields.filter(function(f){return f.key!=='_id';}).map(function(f,i){return makeDocRow(f,i);}).join('')+
+      '</div><button class="add-row-btn" style="margin-top:5px" onclick="addEditRow(\'et-cols\',\'document\')">+ Feld</button>';
+  } else if (node.subtype==='graph-node'||node.subtype==='graph-edge') {
+    var isEdge=node.subtype==='graph-edge';
+    var nodeLabels=state.nodes.filter(function(n){return n.subtype==='graph-node';}).map(function(n){return n.data.title;});
+    var fromOpts=nodeLabels.map(function(l){return '<option'+(l===d.fromLabel?' selected':'')+'>'+esc(l)+'</option>';}).join('');
+    var toOpts=nodeLabels.map(function(l){return '<option'+(l===d.toLabel?' selected':'')+'>'+esc(l)+'</option>';}).join('');
+    inner='<div class="form-row"><span class="form-label">'+(isEdge?'Typ (Name)':'Label')+'</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      (isEdge && nodeLabels.length ?
+        '<div class="form-row"><span class="form-label">Von Node</span><select class="form-input" id="et-from"><option value="">— wählen —</option>'+fromOpts+'</select></div>'+
+        '<div class="form-row"><span class="form-label">Richtung</span><label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="et-directed"'+(d.directed?' checked':'')+'>Gerichtete Kante (→)</label></div>'+
+        '<div class="form-row"><span class="form-label">Zu Node</span><select class="form-input" id="et-to"><option value="">— wählen —</option>'+toOpts+'</select></div>'
+      : isEdge ?
+        '<div style="padding:4px 0 8px;font-size:10px;color:var(--yellow)">⚠ Erst Node-Labels hinzufügen, dann Edges zuordnen.</div>'+
+        '<div class="form-row"><span class="form-label">Directed</span><label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="et-directed"'+(d.directed?' checked':'')+'>Gerichtete Kante (→)</label></div>'
+      : '') +
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Properties:</div><div id="et-cols">'+
+      d.props.map(function(p,i){return makePropRow(p,i);}).join('')+
+      '</div><button class="add-row-btn" style="margin-top:5px" onclick="addEditRow(\'et-cols\',\'graph\')">+ Property</button>';
+  } else if (node.subtype==='namespace') {
+    inner='<div class="form-row"><span class="form-label">Namespace</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Key Patterns:</div><div id="et-cols">'+
+      d.keys.map(function(k,i){return makeKVRow(k,i);}).join('')+
+      '</div><button class="add-row-btn" style="margin-top:5px" onclick="addEditRow(\'et-cols\',\'keyvalue\')">+ Key Pattern</button>';
+  } else if (node.subtype==='measurement') {
+    inner='<div class="form-row"><span class="form-label">Measurement</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      '<div class="form-row"><span class="form-label">Retention</span><input class="form-input" id="et-retention" value="'+esc(d.retention)+'" placeholder="z.B. 30d"></div>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--clr-timeseries)">Tags (indiziert, String):</div><div id="et-tags">'+
+      d.tags.map(function(t,i){return makeTSTagRow(t,i);}).join('')+
+      '</div><button class="add-row-btn" onclick="addEditRow(\'et-tags\',\'ts-tag\')">+ Tag</button>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Fields (Messwerte):</div><div id="et-cols">'+
+      d.fields.map(function(f,i){return makeTSFieldRow(f,i);}).join('')+
+      '</div><button class="add-row-btn" onclick="addEditRow(\'et-cols\',\'ts-field\')">+ Field</button>';
+  } else if (node.subtype==='column') {
+    inner='<div class="form-row"><span class="form-label">Tabellenname</span><input class="form-input" id="et-title" value="'+esc(d.title)+'"></div>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--cyan)">Partition Keys:</div><div id="et-pk">'+
+      d.partitionKeys.map(function(k,i){return makeCFRow(k,i,false);}).join('')+
+      '</div><button class="add-row-btn" onclick="addEditRow(\'et-pk\',\'cf-pk\')">+ Partition Key</button>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Clustering Keys:</div><div id="et-ck">'+
+      d.clusteringKeys.map(function(k,i){return makeCFRow(k,i,true);}).join('')+
+      '</div><button class="add-row-btn" onclick="addEditRow(\'et-ck\',\'cf-ck\')">+ Clustering Key</button>'+
+      '<div style="margin:10px 0 5px;font-size:10px;color:var(--text3)">Columns:</div><div id="et-cols">'+
+      d.columns.map(function(c,i){return makeCFRow(c,i,false);}).join('')+
+      '</div><button class="add-row-btn" onclick="addEditRow(\'et-cols\',\'cf-col\')">+ Column</button>';
+  }
+
+  showModal('Bearbeiten', inner, function(){saveEdit(node);});
+}
+
+function sel(arr,val){return arr.map(function(t){return '<option'+(t===val?' selected':'')+'>'+t+'</option>';}).join('');}
+function makeRelRow(col,i,refOpts){
+  refOpts=refOpts||'<option value="">— keine —</option>';
+  var curRef=col.references||'';
+  var pt=parseType(col.type);
+  var hasParam=SQL_PARAMS.hasOwnProperty(pt.base);
+  var paramPlaceholder=SQL_PARAMS[pt.base]||'';
+  return '<div class="col-editor-row" data-i="'+i+'" style="flex-wrap:wrap;gap:4px">'+
+    '<input placeholder="Name" value="'+esc(col.name)+'" data-f="name" style="min-width:80px">'+
+    '<select data-f="typebase" style="min-width:90px" onchange="onTypeBaseChange(this)">'+SQL_TYPES.map(function(t){return '<option'+(t===pt.base?' selected':'')+'>'+t+'</option>';}).join('')+'</select>'+
+    '<input data-f="typeparam" placeholder="'+esc(paramPlaceholder)+'" value="'+esc(pt.param)+'" style="min-width:0;width:70px;'+(hasParam?'':'display:none')+'" title="Parameter (z.B. Länge, Präzision)">'+
+    '<label><input type="checkbox" data-f="pk"'+(col.pk?' checked':'')+'>PK</label>'+
+    '<label><input type="checkbox" data-f="fk"'+(col.fk?' checked':'')+'>FK</label>'+
+    '<label><input type="checkbox" data-f="nn"'+(col.nn?' checked':'')+'>NN</label>'+
+    '<select data-f="references" style="min-width:120px;color:var(--orange)"><option value="">REFERENCES…</option>'+
+      refOpts.replace('<option value="">— keine —</option>','').replace('<option value="'+esc(curRef)+'">','<option value="'+esc(curRef)+'" selected>')+
+    '</select>'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function onTypeBaseChange(sel){
+  var row=sel.closest('.col-editor-row');
+  var paramInp=row.querySelector('[data-f="typeparam"]');
+  var base=sel.value.toUpperCase();
+  var hasParam=SQL_PARAMS.hasOwnProperty(base);
+  paramInp.style.display=hasParam?'':'none';
+  if(hasParam&&!paramInp.value) paramInp.value=SQL_PARAMS[base]||'';
+}
+function makeDocRow(f,i){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Key" value="'+esc(f.key)+'" data-f="key">'+
+    '<select data-f="type">'+sel(DOC_TYPES,f.type)+'</select>'+
+    '<label><input type="checkbox" data-f="required"'+(f.required?' checked':'')+'>Req</label>'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function makePropRow(p,i){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Name" value="'+esc(p.name)+'" data-f="name">'+
+    '<select data-f="type">'+sel(PROP_TYPES,p.type)+'</select>'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function makeKVRow(k,i){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Pattern" value="'+esc(k.pattern)+'" data-f="pattern" style="flex:2;min-width:80px">'+
+    '<select data-f="type">'+sel(KV_TYPES,k.type)+'</select>'+
+    '<input placeholder="TTL" value="'+esc(k.ttl)+'" data-f="ttl" style="min-width:0;width:50px">'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function makeTSTagRow(t,i){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Tag Name" value="'+esc(t.name)+'" data-f="name">'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function makeTSFieldRow(f,i){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Field" value="'+esc(f.name)+'" data-f="name">'+
+    '<select data-f="type">'+sel(TS_TYPES,f.type)+'</select>'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+function makeCFRow(k,i,hasSortOrder){
+  return '<div class="col-editor-row" data-i="'+i+'">'+
+    '<input placeholder="Name" value="'+esc(k.name)+'" data-f="name">'+
+    '<select data-f="type">'+sel(CF_TYPES,k.type)+'</select>'+
+    (hasSortOrder?'<select data-f="order"><option'+(k.order==='ASC'?' selected':'')+'>ASC</option><option'+(k.order==='DESC'?' selected':'')+'>DESC</option></select>':'')+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
+}
+
+function addRelEditRow(cid, nodeId){
+  var cont=document.getElementById(cid); if(!cont)return;
+  var otherTables=state.nodes.filter(function(n){return n.subtype==='table'&&n.id!==nodeId;});
+  var refOpts='<option value="">REFERENCES…</option>';
+  otherTables.forEach(function(t){
+    t.data.columns.filter(function(c){return c.pk;}).forEach(function(c){
+      refOpts+='<option value="'+esc(t.data.title+'.'+c.name)+'">'+esc(t.data.title)+'.'+esc(c.name)+'</option>';
+    });
+  });
+  var row=document.createElement('div'); row.className='col-editor-row'; row.style.flexWrap='wrap'; row.style.gap='4px';
+  row.innerHTML='<input placeholder="Name" value="new_col" data-f="name" style="min-width:80px">'+
+    '<select data-f="typebase" style="min-width:90px" onchange="onTypeBaseChange(this)">'+SQL_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select>'+
+    '<input data-f="typeparam" placeholder="255" value="" style="min-width:0;width:70px;display:none" title="Parameter">'+
+    '<label><input type="checkbox" data-f="pk">PK</label>'+
+    '<label><input type="checkbox" data-f="fk">FK</label>'+
+    '<label><input type="checkbox" data-f="nn">NN</label>'+
+    '<select data-f="references" style="min-width:120px;color:var(--orange)">'+refOpts+'</select>'+
+    '<button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  cont.appendChild(row);
+}
+function addEditRow(cid, kind) {
+  var cont=document.getElementById(cid); if(!cont)return;
+  var row=document.createElement('div'); row.className='col-editor-row';
+  if(kind==='document') row.innerHTML='<input placeholder="Key" value="field" data-f="key"><select data-f="type">'+DOC_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><label><input type="checkbox" data-f="required">Req</label><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='graph') row.innerHTML='<input placeholder="Name" value="prop" data-f="name"><select data-f="type">'+PROP_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='keyvalue') row.innerHTML='<input placeholder="Pattern" value="ns:{id}" data-f="pattern" style="flex:2;min-width:80px"><select data-f="type">'+KV_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><input placeholder="TTL" value="—" data-f="ttl" style="min-width:0;width:50px"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='ts-tag') row.innerHTML='<input placeholder="Tag Name" value="tag" data-f="name"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='ts-field') row.innerHTML='<input placeholder="Field" value="value" data-f="name"><select data-f="type">'+TS_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='cf-pk'||kind==='cf-col') row.innerHTML='<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='cf-ck') row.innerHTML='<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><select data-f="order"><option>ASC</option><option>DESC</option></select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  cont.appendChild(row);
+}
+function removeEditRow(btn){btn.closest('.col-editor-row').remove();}
+
+function saveEdit(node) {
+  snapshot('Element bearbeiten');
+  var titleEl=document.getElementById('et-title');
+  if(titleEl)node.data.title=titleEl.value;
+
+  function readRows(cid,fields){
+    var cont=document.getElementById(cid); if(!cont)return[];
+    return Array.from(cont.querySelectorAll('.col-editor-row')).map(function(row){
+      var obj={};
+      fields.forEach(function(f){
+        var el=row.querySelector('[data-f="'+f+'"]');
+        if(!el)return;
+        obj[f]=el.type==='checkbox'?el.checked:el.value;
+      });
+      return obj;
+    });
+  }
+
+  if(node.subtype==='table'){
+    node.data.columns=readRows('et-cols',['name','typebase','typeparam','pk','fk','nn','references']).map(function(col){
+      col.type=formatType(col.typebase||col.type, col.typeparam);
+      return col;
+    });
+    // rebuild FK relations for this table
+    state.relations=state.relations.filter(function(r){return r.fromNodeId!==node.id||r.graphLink;});
+    node.data.columns.forEach(function(col){
+      if(!col.fk||!col.references)return;
+      var parts=col.references.split('.');
+      if(parts.length!==2)return;
+      var targetTable=state.nodes.find(function(n){return n.subtype==='table'&&n.data.title===parts[0];});
+      if(!targetTable)return;
+      // check no duplicate
+      var exists=state.relations.find(function(r){return r.fromNodeId===node.id&&r.fromCol===col.name;});
+      if(!exists) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:node.id,fromCol:col.name,toNodeId:targetTable.id,toCol:parts[1]});
+    });
+  }
+  else if(node.subtype==='collection'){
+    var existing=node.data.fields.filter(function(f){return f.key==='_id';});
+    node.data.fields=existing.concat(readRows('et-cols',['key','type','required']));
+  }
+  else if(node.subtype==='graph-node'||node.subtype==='graph-edge'){
+    node.data.props=readRows('et-cols',['name','type']);
+    var dirEl=document.getElementById('et-directed');
+    if(dirEl) node.data.directed=dirEl.checked;
+    var fromEl=document.getElementById('et-from');
+    var toEl=document.getElementById('et-to');
+    if(fromEl && fromEl.value) node.data.fromLabel=fromEl.value;
+    if(toEl && toEl.value) node.data.toLabel=toEl.value;
+    // rebuild graph visual SVG links
+    if(node.subtype==='graph-edge'){
+      state.relations=state.relations.filter(function(r){return !(r.graphLink&&r.fromNodeId===node.id);});
+      function findGN(t){return state.nodes.find(function(n){return n.data.title===t&&n.subtype==='graph-node';});}
+      var fl=node.data.fromLabel, tl=node.data.toLabel;
+      if(fl){var fn2=findGN(fl);if(fn2)state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:node.id,fromCol:'__graph__',toNodeId:fn2.id,toCol:'__graph__',graphLink:true,directed:node.data.directed});}
+      if(tl){var tn2=findGN(tl);if(tn2)state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:node.id,fromCol:'__graph2__',toNodeId:tn2.id,toCol:'__graph2__',graphLink:true,directed:node.data.directed,isTo:true});}
+    }
+  }
+  else if(node.subtype==='namespace') node.data.keys=readRows('et-cols',['pattern','type','ttl']);
+  else if(node.subtype==='measurement'){
+    var ret=document.getElementById('et-retention'); if(ret)node.data.retention=ret.value;
+    node.data.tags=readRows('et-tags',['name']);
+    node.data.fields=readRows('et-cols',['name','type']);
+  }
+  else if(node.subtype==='column'){
+    node.data.partitionKeys=readRows('et-pk',['name','type']);
+    node.data.clusteringKeys=readRows('et-ck',['name','type','order']);
+    node.data.columns=readRows('et-cols',['name','type']);
+  }
+
+  renderNode(node); drawRelations(); closeModal(); refreshCodePanel();
+}
+
+// ── EXPORT ────────────────────────────────────────────
+function showExportModal(){
+  var extraTabs='';
+  if(state.dbType==='relational') extraTabs+='<div class="mtab" onclick="switchExTab(\'sql\',this)">SQL DDL</div>';
+  if(state.dbType==='column')     extraTabs+='<div class="mtab" onclick="switchExTab(\'cql\',this)">CQL (Cassandra)</div>';
+  if(state.dbType==='graph')      extraTabs+='<div class="mtab" onclick="switchExTab(\'cypher\',this)">Cypher (Neo4j)</div>';
+  if(state.dbType==='document')   extraTabs+='<div class="mtab" onclick="switchExTab(\'mongo\',this)">MongoDB Shell</div>';
+  if(state.dbType==='timeseries') extraTabs+='<div class="mtab" onclick="switchExTab(\'influx\',this)">InfluxDB Line Protocol</div>';
+  if(state.dbType==='keyvalue')   extraTabs+='<div class="mtab" onclick="switchExTab(\'redis\',this)">Redis CLI Kommentare</div>';
+
+  var inner='<div class="modal-tabs"><div class="mtab active" onclick="switchExTab(\'json\',this)">JSON Architektur</div>'+extraTabs+'</div>'+
+    '<textarea id="export-ta" readonly></textarea>';
+  showModal('Export', inner, null, true);
+  genExport('json');
+}
+function switchExTab(t,el){
+  document.querySelectorAll('.mtab').forEach(function(x){x.classList.remove('active');});
+  el.classList.add('active'); genExport(t);
+}
+function genExport(t){
+  var ta=document.getElementById('export-ta'); if(!ta)return;
+  var out='';
+  if(t==='json') out=JSON.stringify({version:'1.0',dbType:state.dbType,nodes:state.nodes,relations:state.relations},null,2);
+  else if(t==='sql') out=genSQL();
+  else if(t==='cql') out=genCQL();
+  else if(t==='cypher') out=genCypher();
+  else if(t==='mongo') out=genMongo();
+  else if(t==='influx') out=genInflux();
+  else if(t==='redis') out=genRedis();
+  ta.value=out;
+}
+
+function genSQL(){
+  var sql='-- Generated by DB Architect\n-- PostgreSQL / MySQL compatible DDL\n\n';
+  state.nodes.filter(function(n){return n.subtype==='table';}).forEach(function(node){
+    var d=node.data;
+    sql+='CREATE TABLE `'+d.title+'` (\n';
+    var cols=d.columns.map(function(col){
+      var def='  `'+col.name+'` '+col.type;
+      if(col.pk||col.nn) def+=' NOT NULL';
+      if(col.pk&&col.type==='SERIAL') def='  `'+col.name+'` SERIAL';
+      return def;
+    });
+    var pks=d.columns.filter(function(c){return c.pk;}).map(function(c){return '`'+c.name+'`';});
+    if(pks.length) cols.push('  PRIMARY KEY ('+pks.join(', ')+')');
+    sql+=cols.join(',\n')+'\n);\n\n';
+  });
+  state.relations.forEach(function(rel){
+    if(rel.graphLink)return;
+    var fn=state.nodes.find(function(n){return n.id===rel.fromNodeId;});
+    var tn=state.nodes.find(function(n){return n.id===rel.toNodeId;});
+    if(!fn||!tn)return;
+    var toCol=rel.toCol||'id';
+    sql+='ALTER TABLE `'+fn.data.title+'`\n  ADD CONSTRAINT `fk_'+fn.data.title+'_'+rel.fromCol+'`\n  FOREIGN KEY (`'+rel.fromCol+'`) REFERENCES `'+tn.data.title+'`(`'+toCol+'`);\n\n';
+  });
+  return sql;
+}
+function genCQL(){
+  var cql='-- Generated by DB Architect\n-- Apache Cassandra / ScyllaDB CQL\n\nCREATE KEYSPACE IF NOT EXISTS my_keyspace\n  WITH replication = {\'class\': \'SimpleStrategy\', \'replication_factor\': 3};\n\nUSE my_keyspace;\n\n';
+  state.nodes.filter(function(n){return n.subtype==='column';}).forEach(function(node){
+    var d=node.data;
+    cql+='CREATE TABLE IF NOT EXISTS '+d.title+' (\n';
+    var all=[];
+    d.partitionKeys.forEach(function(k){all.push('  '+k.name+' '+k.type);});
+    d.clusteringKeys.forEach(function(k){all.push('  '+k.name+' '+k.type);});
+    d.columns.forEach(function(c){all.push('  '+c.name+' '+c.type);});
+    var pk=d.partitionKeys.map(function(k){return k.name;}).join(', ');
+    var ck=d.clusteringKeys.map(function(k){return k.name;}).join(', ');
+    all.push('  PRIMARY KEY ('+(ck?'('+pk+'), '+ck:pk)+')');
+    cql+=all.join(',\n')+'\n)';
+    if(d.clusteringKeys.length){
+      cql+='\nWITH CLUSTERING ORDER BY ('+d.clusteringKeys.map(function(k){return k.name+' '+k.order;}).join(', ')+')';
+    }
+    cql+=';\n\n';
+  });
+  return cql;
+}
+function genCypher(){
+  var cy='// Generated by DB Architect\n// Neo4j Cypher Schema\n\n';
+  state.nodes.filter(function(n){return n.subtype==='graph-node';}).forEach(function(node){
+    var d=node.data;
+    cy+='// Node Label: :'+d.title+'\n';
+    cy+='CREATE CONSTRAINT FOR (n:'+d.title+') REQUIRE n.id IS UNIQUE;\n';
+    d.props.forEach(function(p){cy+='// .'+p.name+': '+p.type+'\n';});
+    cy+='\n';
+  });
+  state.nodes.filter(function(n){return n.subtype==='graph-edge';}).forEach(function(node){
+    var d=node.data;
+    var from=d.fromLabel||'?', to=d.toLabel||'?';
+    var arrow=d.directed ? '(:'+from+')-[:'+d.title+']->(:'+to+')' : '(:'+from+')-[:'+d.title+']-(:'+to+')';
+    cy+='// Relationship: '+arrow+'\n';
+    d.props.forEach(function(p){cy+='// .'+p.name+': '+p.type+'\n';});
+    cy+='\n';
+  });
+  return cy;
+}
+function genMongo(){
+  var sh='// Generated by DB Architect\n// MongoDB Shell\n\n';
+  state.nodes.filter(function(n){return n.subtype==='collection';}).forEach(function(node){
+    var d=node.data;
+    sh+='db.createCollection("'+d.title+'");\n';
+    var req=d.fields.filter(function(f){return f.required&&f.key!=='_id';}).map(function(f){return '"'+f.key+'"';});
+    sh+='db.runCommand({\n  collMod: "'+d.title+'",\n  validator: {\n    $jsonSchema: {\n      bsonType: "object",\n';
+    if(req.length) sh+='      required: ['+req.join(', ')+'],\n';
+    sh+='      properties: {\n';
+    d.fields.filter(function(f){return f.key!=='_id';}).forEach(function(f){
+      sh+='        '+f.key+': { bsonType: "'+f.type.toLowerCase()+'" },\n';
+    });
+    sh+='      }\n    }\n  }\n});\n\n';
+  });
+  return sh;
+}
+function genInflux(){
+  var s='// Generated by DB Architect\n// InfluxDB 2.x Schema\n\n';
+  state.nodes.filter(function(n){return n.subtype==='measurement';}).forEach(function(node){
+    var d=node.data;
+    s+='// Measurement: '+d.title+'\n// Retention Policy: '+d.retention+'\n';
+    s+='// Tags:   '+d.tags.map(function(t){return t.name;}).join(', ')+'\n';
+    s+='// Fields: '+d.fields.map(function(f){return f.name+'('+f.type+')';}).join(', ')+'\n';
+    var tagStr=d.tags.map(function(t){return t.name+'=value';}).join(',');
+    var fieldStr=d.fields.map(function(f){return f.name+'='+(f.type==='float'?'0.0':f.type==='boolean'?'true':'"value"');}).join(',');
+    s+='// Example:\n// '+d.title+','+tagStr+' '+fieldStr+' '+Date.now()+'000000\n\n';
+  });
+  return s;
+}
+function genRedis(){
+  var s='# Generated by DB Architect\n# Redis Key Pattern Documentation\n\n';
+  state.nodes.filter(function(n){return n.subtype==='namespace';}).forEach(function(node){
+    var d=node.data;
+    s+='# Namespace: '+d.title+'\n';
+    d.keys.forEach(function(k){
+      s+='# Key:  '+k.pattern+'\n# Type: '+k.type+(k.ttl!=='—'?'\n# TTL:  '+k.ttl:'')+'\n';
+      if(k.type==='Hash') s+='# HSET '+k.pattern.replace('{id}','1')+' field1 value1\n';
+      else if(k.type==='List') s+='# RPUSH '+k.pattern.replace('{id}','1')+' value1\n';
+      else if(k.type==='Set') s+='# SADD '+k.pattern.replace('{id}','1')+' member1\n';
+      else s+='# SET '+k.pattern.replace('{id}','1')+' value\n';
+      s+='\n';
+    });
+  });
+  return s;
+}
+
+// ── IMPORT ────────────────────────────────────────────
+function showImportModal(){
+  var inner='<div class="modal-tabs">'+
+    '<div class="mtab active" onclick="switchImTab(\'json\',this)">JSON Architektur</div>'+
+    '<div class="mtab" onclick="switchImTab(\'sql\',this)">SQL (DDL &amp; Dump)</div>'+
+    '</div><textarea id="import-ta" placeholder="JSON oder SQL hier einfügen…\n\nUnterstützt: CREATE TABLE, ALTER TABLE ... ADD FOREIGN KEY\nIgnoriert: INSERT, UPDATE, DELETE, LOCK, SET, Kommentare"></textarea>';
+  showModal('Import', inner, null, false, true);
+}
+function switchImTab(t,el){
+  document.querySelectorAll('.mtab').forEach(function(x){x.classList.remove('active');});
+  el.classList.add('active');
+  var ta=document.getElementById('import-ta');
+  ta.dataset.mode=t;
+  ta.placeholder=t==='sql'
+    ?'SQL Dump oder DDL hier einfügen…\n\nUnterstützt: CREATE TABLE, ALTER TABLE ... ADD FOREIGN KEY\nIgnoriert: INSERT, UPDATE, DELETE, LOCK, SET, Kommentare usw.'
+    :'JSON Architektur hier einfügen…';
+}
+function doImport(){
+  var ta=document.getElementById('import-ta'); if(!ta||!ta.value.trim())return;
+  var text=ta.value.trim(), mode=ta.dataset.mode||'json';
+  if(mode==='sql'){importSQL(text);return;}
+  try{
+    var data=JSON.parse(text);
+    if(data.nodes){
+      state.nodes=data.nodes; state.relations=data.relations||[];
+      var maxId=0;
+      state.nodes.forEach(function(n){var i=parseInt(n.id.split('_')[1]||0);if(i>maxId)maxId=i;});
+      state.nextId=maxId+1;
+      if(data.dbType){
+        state.dbType=data.dbType;
+        document.querySelectorAll('.dbtab').forEach(function(t){t.classList.toggle('active',t.dataset.type===data.dbType);});
+        updateSidebar();
+      }
+      canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+      canvasSvg.innerHTML='';
+      state.nodes.forEach(function(n){renderNode(n);});
+      drawRelations(); autoLayout();
+      showMsg('Importiert: '+state.nodes.length+' Elemente');
+      closeModal();
+    }
+  }catch(e){showMsg('Fehler: Ungültiges JSON – '+e.message);}
+}
+
+function importSQL(raw){
+  // ── Step 1: Pre-clean the dump ──────────────────────
+  var sql=raw
+    // remove C-style comments /* ... */
+    .replace(/\/\*[\s\S]*?\*\//g,' ')
+    // remove line comments -- ...
+    .replace(/--[^\n]*/g,' ')
+    // remove MySQL conditional comments /*!...*/
+    .replace(/\/\*![\s\S]*?\*\//g,' ')
+    // remove lines that are just noise in dumps
+    .replace(/^\s*(SET|LOCK|UNLOCK|USE|START\s+TRANSACTION|COMMIT|ROLLBACK|DROP\s+TABLE|DELIMITER|BEGIN)[^;]*;/gim,' ')
+    // remove INSERT / UPDATE / DELETE / REPLACE statements entirely (can be huge)
+    .replace(/(INSERT|UPDATE|DELETE|REPLACE)\s+[^;]*;/gi,' ')
+    // collapse whitespace runs
+    .replace(/\s+/g,' ');
+
+  // ── Step 2: Extract CREATE TABLE blocks ─────────────
+  // We find CREATE TABLE ... then balance parentheses to get the full body,
+  // because the body can contain nested parens (ENUM, CHECK, etc.)
+  var tables=[];
+  var reName=/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([`"'\[]?[\w$]+[`"'\]]?)\s*\(/gi;
+  var m;
+  while((m=reName.exec(sql))!==null){
+    var tableName=m[1].replace(/[`"'\[\]]/g,'');
+    // balance parens from opening paren position
+    var start=m.index+m[0].length-1; // position of '('
+    var depth=0, i=start, bodyStart=start+1;
+    while(i<sql.length){
+      var ch=sql[i];
+      // handle string literals inside SQL (skip their content)
+      if(ch==="'"||ch==='"'||ch==='`'){
+        var q=ch; i++;
+        while(i<sql.length&&!(sql[i]===q&&sql[i-1]!=='\\')){i++;}
+      } else if(ch==='('){depth++;}
+      else if(ch===')'){depth--;if(depth===0)break;}
+      i++;
+    }
+    var body=sql.substring(bodyStart,i);
+    tables.push({name:tableName,body:body,pos:m.index});
+  }
+
+  if(tables.length===0){showMsg('Keine CREATE TABLE Statements gefunden');return;}
+
+  // ── Step 3: Parse columns from each table body ──────
+  var typeMap={
+    'INT':'INT','INTEGER':'INT','BIGINT':'BIGINT','SMALLINT':'SMALLINT','TINYINT':'TINYINT',
+    'MEDIUMINT':'INT','SERIAL':'SERIAL','BOOL':'BOOLEAN','BOOLEAN':'BOOLEAN',
+    'FLOAT':'FLOAT','DOUBLE':'DOUBLE','REAL':'DOUBLE','NUMERIC':'DECIMAL',
+    'DECIMAL':'DECIMAL','DEC':'DECIMAL','MONEY':'DECIMAL(10,2)',
+    'VARCHAR':'VARCHAR','CHARACTER VARYING':'VARCHAR','NVARCHAR':'VARCHAR',
+    'CHAR':'CHAR','NCHAR':'CHAR','TEXT':'TEXT','TINYTEXT':'TEXT','MEDIUMTEXT':'TEXT','LONGTEXT':'TEXT',
+    'CLOB':'TEXT','NTEXT':'TEXT',
+    'DATE':'DATE','DATETIME':'DATETIME','TIMESTAMP':'TIMESTAMP',
+    'TIME':'TIME','YEAR':'YEAR','INTERVAL':'INTERVAL',
+    'BINARY':'BLOB','VARBINARY':'BLOB','BLOB':'BLOB','TINYBLOB':'BLOB','MEDIUMBLOB':'BLOB','LONGBLOB':'BLOB','BYTEA':'BYTEA',
+    'JSON':'JSON','JSONB':'JSONB','XML':'TEXT','UUID':'UUID',
+    'ENUM':'ENUM','SET':'ENUM','BIT':'BOOLEAN',
+    'ARRAY':'ARRAY','HSTORE':'JSON','INET':'TEXT','CIDR':'TEXT','MACADDR':'TEXT',
+    'GEOMETRY':'TEXT','POINT':'TEXT','POLYGON':'TEXT'
+  };
+
+  // Extract primary keys from table-level PK constraint
+  function extractTablePKs(body){
+    var pks=[];
+    var pkRx=/PRIMARY\s+KEY\s*\(([^)]+)\)/gi;
+    var pm;
+    while((pm=pkRx.exec(body))!==null){
+      pm[1].split(',').forEach(function(p){pks.push(p.trim().replace(/[`"']/g,'').toUpperCase());});
+    }
+    return pks;
+  }
+
+  // Split body into column/constraint clauses, respecting nested parens
+  function splitClauses(body){
+    var clauses=[];
+    var depth=0,current='',i=0;
+    while(i<body.length){
+      var ch=body[i];
+      if(ch==="'"||ch==='"'||ch==='`'){
+        var q=ch; current+=ch; i++;
+        while(i<body.length){
+          current+=body[i];
+          if(body[i]===q&&body[i-1]!=='\\')break;
+          i++;
+        }
+      } else if(ch==='('){depth++;current+=ch;}
+      else if(ch===')'){depth--;current+=ch;}
+      else if(ch===','&&depth===0){
+        clauses.push(current.trim());current='';
+        i++;continue;
+      } else {current+=ch;}
+      i++;
+    }
+    if(current.trim())clauses.push(current.trim());
+    return clauses;
+  }
+
+  function parseType(raw){
+    var clean=raw.trim().replace(/\s+/,' ');
+    // extract base type (before space or paren)
+    var base=(clean.match(/^([A-Z\s]+?)(?:\s*\(|\s+|$)/i)||[,''])[1].trim().toUpperCase();
+    // map to known type
+    var mapped=typeMap[base]||base;
+    // preserve param if original had one and mapped type needs it
+    var paramM=clean.match(/\(([^)]+)\)/);
+    var param=paramM?paramM[1]:'';
+    if(param&&(mapped==='VARCHAR'||mapped==='CHAR'||mapped==='DECIMAL'||mapped==='ENUM'))
+      return mapped+'('+param+')';
+    return mapped;
+  }
+
+  // Clear existing relational tables
+  state.nodes=state.nodes.filter(function(n){return n.subtype!=='table';});
+  state.relations=[];
+  canvas.querySelectorAll('.node[data-type="relational"]').forEach(function(n){n.remove();});
+  var fkCandidates=[]; // {fromTable, fromCol, toTable, toCol}
+
+  tables.forEach(function(tbl,idx){
+    var pks=extractTablePKs(tbl.body);
+    var clauses=splitClauses(tbl.body);
+    var columns=[];
+
+    clauses.forEach(function(clause){
+      var cl=clause.trim();
+      if(!cl)return;
+      var up=cl.toUpperCase();
+
+      // Skip table-level constraints (not column definitions)
+      if(/^(PRIMARY\s+KEY|UNIQUE\s+(KEY\s+|INDEX\s+)?|KEY\s+|INDEX\s+|FULLTEXT|SPATIAL|CHECK\s*\()/i.test(cl))return;
+
+      // CONSTRAINT ... FOREIGN KEY
+      var fkM=cl.match(/CONSTRAINT\s+[`"']?\w+[`"']?\s+FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+      if(!fkM) fkM=cl.match(/FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+      if(fkM){
+        var fromCols=fkM[1].split(',').map(function(c){return c.trim().replace(/[`"']/g,'');});
+        var toTable=fkM[2];
+        var toCols=fkM[3].split(',').map(function(c){return c.trim().replace(/[`"']/g,'');});
+        fromCols.forEach(function(fc,i){
+          fkCandidates.push({fromTable:tbl.name,fromCol:fc,toTable:toTable,toCol:toCols[i]||toCols[0]});
+          // mark column as FK
+          columns.forEach(function(col){if(col.name.toLowerCase()===fc.toLowerCase())col.fk=true;});
+        });
+        return;
+      }
+
+      // Column definition: name type [constraints...]
+      var colM=cl.match(/^[`"'\[]?([\w$]+)[`"'\]]?\s+(.+)$/i);
+      if(!colM)return;
+      var colName=colM[1];
+      var rest=colM[2];
+
+      // Skip SQL keywords that aren't column names
+      if(/^(PRIMARY|UNIQUE|KEY|INDEX|CONSTRAINT|CHECK|FOREIGN|FULLTEXT|SPATIAL|ENGINE|AUTO_INCREMENT|DEFAULT\s+CHARSET|COLLATE|ROW_FORMAT|COMMENT|CHARACTER\s+SET)/i.test(colName))return;
+
+      var typeRaw=(rest.match(/^([A-Z][A-Z0-9_\s]*?(?:\([^)]*\))?)(?:\s|$)/i)||['',''])[1].trim();
+      var colType=parseType(typeRaw);
+      var isNN=/NOT\s+NULL/i.test(rest)||/PRIMARY\s+KEY/i.test(rest);
+      var isPK=/PRIMARY\s+KEY/i.test(rest)||pks.indexOf(colName.toUpperCase())>=0;
+      var isFK=/REFERENCES/i.test(rest);
+
+      // REFERENCES inline
+      if(isFK){
+        var refM=rest.match(/REFERENCES\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+        if(refM) fkCandidates.push({fromTable:tbl.name,fromCol:colName,toTable:refM[1],toCol:refM[2].replace(/[`"']/g,'').trim()});
+      }
+
+      columns.push({name:colName,type:colType,pk:isPK,fk:isFK,nn:isNN,references:''});
+    });
+
+    if(!columns.length){
+      // fallback: table with no parseable columns → add placeholder
+      columns.push({name:'(keine Spalten erkannt)',type:'',pk:false,fk:false,nn:false,references:''});
+    }
+
+    var id='node_'+(state.nextId++);
+    var node={id:id,type:'relational',subtype:'table',x:0,y:0,data:{title:tbl.name,columns:columns}};
+    state.nodes.push(node);
+    renderNode(node);
+  });
+
+  // ── Step 4: Resolve FK relations ────────────────────
+  // Also parse ALTER TABLE ... ADD FOREIGN KEY from the cleaned SQL
+  var altRx=/ALTER\s+TABLE\s+[`"']?(\w+)[`"']?\s+ADD\s+(?:CONSTRAINT\s+[`"']?\w+[`"']?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/gi;
+  var am;
+  while((am=altRx.exec(sql))!==null){
+    fkCandidates.push({fromTable:am[1],fromCol:am[2].replace(/[`"'\s]/g,''),toTable:am[3],toCol:am[4].replace(/[`"'\s]/g,'')});
+  }
+
+  fkCandidates.forEach(function(fk){
+    var fromNode=state.nodes.find(function(n){return n.data&&n.data.title.toLowerCase()===fk.fromTable.toLowerCase();});
+    var toNode  =state.nodes.find(function(n){return n.data&&n.data.title.toLowerCase()===fk.toTable.toLowerCase();});
+    if(!fromNode||!toNode)return;
+    // set references on the column
+    var col=fromNode.data.columns.find(function(c){return c.name.toLowerCase()===fk.fromCol.toLowerCase();});
+    if(col){col.fk=true;col.references=fk.toTable+'.'+fk.toCol;}
+    // avoid duplicate relations
+    var exists=state.relations.find(function(r){return r.fromNodeId===fromNode.id&&r.fromCol===fk.fromCol;});
+    if(!exists) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:fromNode.id,fromCol:fk.fromCol,toNodeId:toNode.id,toCol:fk.toCol});
+  });
+
+  // ── Step 5: Activate relational tab and layout ───────
+  state.dbType='relational';
+  document.querySelectorAll('.dbtab').forEach(function(t){t.classList.toggle('active',t.dataset.type==='relational');});
+  updateSidebar();
+
+  // re-render all to pick up fk markers
+  state.nodes.forEach(function(n){if(n.subtype==='table')renderNode(n);});
+  drawRelations();
+  autoLayout();
+  showMsg('✓ '+tables.length+' Tabellen importiert, '+state.relations.length+' FK-Beziehungen erkannt');
+  closeModal();
+}
+
+// ── MODAL SYSTEM ──────────────────────────────────────
+function showModal(title,body,onSave,isExport,isImport){
+  closeModal();
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay'; overlay.id='modal-overlay';
+  var footer='';
+  if(isExport) footer='<button class="btn primary" onclick="copyExport()">Kopieren</button><button class="btn primary" onclick="dlExport()">Download</button>';
+  else if(isImport) footer='<button class="btn primary" onclick="doImport()">Importieren</button>';
+  else if(onSave) footer='<button class="btn primary" onclick="window._pendingSave&&window._pendingSave()">Speichern</button>';
+  footer+='<button class="btn" onclick="closeModal()">Schließen</button>';
+  overlay.innerHTML='<div class="modal"><div class="modal-header"><h2>'+title+'</h2><button class="node-del" onclick="closeModal()" style="width:22px;height:22px;font-size:14px">✕</button></div><div class="modal-body">'+body+'</div><div class="modal-footer">'+footer+'</div></div>';
+  document.body.appendChild(overlay);
+  window._pendingSave=onSave;
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closeModal();});
+}
+function closeModal(){var o=document.getElementById('modal-overlay');if(o)o.remove();}
+function copyExport(){var ta=document.getElementById('export-ta');if(ta){navigator.clipboard.writeText(ta.value);showMsg('Kopiert!');}}
+function dlExport(){
+  var ta=document.getElementById('export-ta'); if(!ta)return;
+  var v=ta.value.trim();
+  var ext=v.startsWith('{')&&v.includes('"nodes"')?'json':v.startsWith('--')||v.startsWith('CREATE')?'sql':v.startsWith('//')?'txt':'txt';
+  var a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ta.value);
+  a.download='schema.'+ext; a.click();
+}
+
+// ── THEME ─────────────────────────────────────────────
+var isLight=false;
+function toggleTheme(){
+  isLight=!isLight;
+  document.body.classList.toggle('light',isLight);
+  document.getElementById('btn-theme').textContent=isLight?'🌙':'☀';
+  // redraw SVG arrows with correct color
+  drawRelations();
+}
+
+// ── IMAGE / PDF EXPORT ────────────────────────────────
+function getExportBounds(){
+  var nodes=state.nodes;
+  var pad=50;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  nodes.forEach(function(n){
+    var el=document.getElementById(n.id); if(!el)return;
+    var r=el.getBoundingClientRect(), cr=canvasWrap.getBoundingClientRect();
+    var x=(r.left-cr.left-panX)/scale, y=(r.top-cr.top-panY)/scale;
+    var w=r.width/scale, h=r.height/scale;
+    minX=Math.min(minX,x-pad); minY=Math.min(minY,y-pad);
+    maxX=Math.max(maxX,x+w+pad); maxY=Math.max(maxY,y+h+pad);
+  });
+  // also include relations SVG extent (arrows may extend beyond nodes)
+  var svgPaths=canvasSvg.querySelectorAll('path');
+  svgPaths.forEach(function(p){
+    try{var b=p.getBBox();
+      var cr=canvasWrap.getBoundingClientRect();
+      // getBBox is in SVG coords (already in canvas space due to transform)
+      minX=Math.min(minX,b.x-pad); minY=Math.min(minY,b.y-pad);
+      maxX=Math.max(maxX,b.x+b.width+pad); maxY=Math.max(maxY,b.y+b.height+pad);
+    }catch(e){}
+  });
+  return {minX:minX,minY:minY,W:maxX-minX,H:maxY-minY,offX:-minX,offY:-minY};
+}
+
+function renderToCanvas(dpr){
+  var nodes=state.nodes;
+  if(!nodes.length) return null;
+  var bounds=getExportBounds();
+  var W=bounds.W, H=bounds.H, offX=bounds.offX, offY=bounds.offY;
+
+  var cvs=document.createElement('canvas');
+  cvs.width=Math.ceil(W*dpr); cvs.height=Math.ceil(H*dpr);
+  var ctx=cvs.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  var light=document.body.classList.contains('light');
+  var bgColor=light?'#f4f6fb':'#0d0f14';
+  var gridColor=light?'rgba(0,0,0,.07)':'rgba(255,255,255,.035)';
+  var textMain=light?'#1a1f2e':'#e8ecf4';
+  var textSub=light?'#4a5270':'#8a95b0';
+  var textMuted=light?'#9099b8':'#4a5570';
+
+  ctx.fillStyle=bgColor; ctx.fillRect(0,0,W,H);
+
+  // grid dots
+  ctx.fillStyle=gridColor;
+  for(var gx=0;gx<W;gx+=24) for(var gy=0;gy<H;gy+=24){ctx.beginPath();ctx.arc(gx,gy,0.8,0,Math.PI*2);ctx.fill();}
+
+  // ── DRAW SVG ARROWS ──
+  // Re-render relations directly to canvas using same geometry as drawRelations
+  var cr0=canvasWrap.getBoundingClientRect();
+  function canvasPt(el, tx, ty){
+    // get node center in canvas coords
+    var r=el.getBoundingClientRect();
+    var cx=(r.left+r.width/2-cr0.left-panX)/scale;
+    var cy=(r.top+r.height/2-cr0.top-panY)/scale;
+    return {cx:cx, cy:cy};
+  }
+  function borderPt(el, tx, ty){
+    var r=el.getBoundingClientRect();
+    var cx=(r.left+r.width/2-cr0.left-panX)/scale;
+    var cy=(r.top+r.height/2-cr0.top-panY)/scale;
+    var hw=r.width/2/scale, hh=r.height/2/scale;
+    var dx=tx-cx, dy=ty-cy;
+    if(dx===0&&dy===0)return{x:cx,y:cy};
+    var sx=dx!==0?Math.abs(hw/dx):Infinity, sy=dy!==0?Math.abs(hh/dy):Infinity;
+    var s=Math.min(sx,sy);
+    return{x:cx+dx*s, y:cy+dy*s};
+  }
+  function drawArrow(ctx, x1,y1, x2,y2, color, dashed, arrowColor){
+    ctx.save();
+    ctx.strokeStyle=color; ctx.lineWidth=1.8;
+    if(dashed) ctx.setLineDash([6,4]); else ctx.setLineDash([]);
+    // control points for bezier
+    var dx=(x2-x1)*0.4, dy=(y2-y1)*0.4;
+    var cp1x=x1+dx, cp1y=y1+dy, cp2x=x2-dx, cp2y=y2-dy;
+    // arrowhead size
+    var ARR=9;
+    // tangent at t=1 of cubic bezier: 3*(P3-P2)
+    var tanX=3*(x2-cp2x), tanY=3*(y2-cp2y);
+    var tanLen=Math.sqrt(tanX*tanX+tanY*tanY)||1;
+    var ux=tanX/tanLen, uy=tanY/tanLen; // unit tangent
+    // shorten endpoint by arrowhead so line doesn't overshoot
+    var ex=x2-ux*ARR, ey=y2-uy*ARR;
+    // recompute cp2 to aim at shortened endpoint
+    var cp2xS=ex-dx*0.5, cp2yS=ey-dy*0.5;
+    ctx.beginPath();
+    ctx.moveTo(x1+offX,y1+offY);
+    ctx.bezierCurveTo(cp1x+offX,cp1y+offY, cp2x+offX,cp2y+offY, ex+offX,ey+offY);
+    ctx.stroke();
+    if(arrowColor){
+      // exact angle from tangent
+      var angle=Math.atan2(uy,ux);
+      var spread=0.38;
+      ctx.setLineDash([]);
+      ctx.fillStyle=arrowColor;
+      ctx.beginPath();
+      ctx.moveTo(x2+offX, y2+offY);
+      ctx.lineTo(x2+offX - ARR*Math.cos(angle-spread), y2+offY - ARR*Math.sin(angle-spread));
+      ctx.lineTo(x2+offX - ARR*Math.cos(angle+spread), y2+offY - ARR*Math.sin(angle+spread));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  state.relations.forEach(function(rel){
+    var fromEl=document.getElementById(rel.fromNodeId);
+    var toEl=document.getElementById(rel.toNodeId);
+    if(!fromEl||!toEl) return;
+    var fc=canvasPt(fromEl), tc=canvasPt(toEl);
+    if(rel.graphLink){
+      var fp=borderPt(fromEl,tc.cx,tc.cy), tp=borderPt(toEl,fc.cx,fc.cy);
+      var color=rel.isTo?'rgba(176,79,247,.85)':'rgba(176,79,247,.4)';
+      drawArrow(ctx,fp.x,fp.y,tp.x,tp.y,color,!rel.isTo,rel.isTo&&rel.directed?'rgba(176,79,247,1)':null);
+    } else if(rel.docRef){
+      var fp=borderPt(fromEl,tc.cx,tc.cy), tp=borderPt(toEl,fc.cx,fc.cy);
+      drawArrow(ctx,fp.x,fp.y,tp.x,tp.y,'rgba(61,232,160,.7)',true,'rgba(61,232,160,.9)');
+    } else if(rel.tsLink){
+      var fp=borderPt(fromEl,tc.cx,tc.cy), tp=borderPt(toEl,fc.cx,fc.cy);
+      drawArrow(ctx,fp.x,fp.y,tp.x,tp.y,rel.isTo?'rgba(247,79,106,.85)':'rgba(247,79,106,.4)',!rel.isTo,rel.isTo?'rgba(247,79,106,1)':null);
+    } else if(rel.cfViewLink){
+      var fp=borderPt(fromEl,tc.cx,tc.cy), tp=borderPt(toEl,fc.cx,fc.cy);
+      drawArrow(ctx,fp.x,fp.y,tp.x,tp.y,'rgba(79,240,247,.65)',true,'rgba(79,240,247,.9)');
+    } else {
+      // relational FK: right edge → left edge, row height
+      var dot=fromEl.querySelector('.conn-dot[data-col="'+CSS.escape(rel.fromCol)+'"]');
+      var toDot=toEl.querySelector('.conn-dot[data-col="'+CSS.escape(rel.toCol)+'"]')||toEl.querySelector('.conn-dot');
+      if(!dot)return;
+      function dotPos(d){var dr=d.getBoundingClientRect();return{x:(dr.left+dr.width/2-cr0.left-panX)/scale,y:(dr.top+dr.height/2-cr0.top-panY)/scale};}
+      var fdp=dotPos(dot);
+      var fromR=fromEl.getBoundingClientRect();
+      var toR=toEl.getBoundingClientRect();
+      var fx=(fromR.right-cr0.left-panX)/scale, fy=fdp.y;
+      var tx=(toR.left-cr0.left-panX)/scale, ty=toDot?dotPos(toDot).y:tc.cy;
+      var markerLen=10;
+      var txAdj=tx+(tx>fx?-markerLen:markerLen);
+      ctx.save();
+      ctx.strokeStyle='rgba(79,142,247,.75)'; ctx.lineWidth=1.8; ctx.setLineDash([]);
+      var ddx=Math.abs(txAdj-fx)*0.5;
+      var cp1rx=fx+ddx, cp1ry=fy, cp2rx=txAdj-ddx, cp2ry=ty;
+      var ARR2=9;
+      // tangent at t=1: 3*(P3-P2)
+      var tanRx=3*(txAdj-cp2rx), tanRy=3*(ty-cp2ry);
+      var tanRLen=Math.sqrt(tanRx*tanRx+tanRy*tanRy)||1;
+      var uxR=tanRx/tanRLen, uyR=tanRy/tanRLen;
+      var exR=txAdj-uxR*ARR2, eyR=ty-uyR*ARR2;
+      ctx.beginPath();
+      ctx.moveTo(fx+offX,fy+offY);
+      ctx.bezierCurveTo(cp1rx+offX,cp1ry+offY, cp2rx+offX,cp2ry+offY, exR+offX,eyR+offY);
+      ctx.stroke();
+      var angR=Math.atan2(uyR,uxR);
+      ctx.fillStyle='rgba(79,142,247,.9)';
+      ctx.beginPath();
+      ctx.moveTo(txAdj+offX,ty+offY);
+      ctx.lineTo(txAdj+offX-ARR2*Math.cos(angR-0.38),ty+offY-ARR2*Math.sin(angR-0.38));
+      ctx.lineTo(txAdj+offX-ARR2*Math.cos(angR+0.38),ty+offY-ARR2*Math.sin(angR+0.38));
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  // ── DRAW NODE CARDS ──
+  var COLORS={
+    border:{'table':'rgba(79,142,247,.5)','collection':'rgba(61,232,160,.5)','graph-node':'rgba(176,79,247,.5)','graph-edge':'rgba(247,200,79,.5)','namespace':'rgba(247,200,79,.5)','kv-flow':'rgba(247,200,79,.7)','measurement':'rgba(247,79,106,.5)','ts-task':'rgba(247,79,106,.7)','column':'rgba(79,240,247,.5)','cf-view':'rgba(79,240,247,.7)','doc-index':'rgba(61,232,160,.7)'},
+    header:{'table':'rgba(79,142,247,.14)','collection':'rgba(61,232,160,.12)','graph-node':'rgba(176,79,247,.14)','graph-edge':'rgba(247,200,79,.12)','namespace':'rgba(247,200,79,.12)','kv-flow':'rgba(247,200,79,.18)','measurement':'rgba(247,79,106,.12)','ts-task':'rgba(247,79,106,.18)','column':'rgba(79,240,247,.12)','cf-view':'rgba(79,240,247,.18)','doc-index':'rgba(61,232,160,.18)'},
+    title:{'table':'#4f8ef7','collection':'#3de8a0','graph-node':'#b04ff7','graph-edge':'#f7c84f','namespace':'#f7c84f','kv-flow':'#f7c84f','measurement':'#f74f6a','ts-task':'#f74f6a','column':'#4ff0f7','cf-view':'#4ff0f7','doc-index':'#3de8a0'}
+  };
+  var typeColors={'INT':'#f7c84f','BIGINT':'#f7c84f','SERIAL':'#f7c84f','SMALLINT':'#f7c84f','TINYINT':'#f7c84f','VARCHAR(255)':'#4ff0f7','TEXT':'#4ff0f7','CHAR(1)':'#4ff0f7','UUID':'#f78c4f','BOOLEAN':'#3de8a0','FLOAT':'#b04ff7','DOUBLE':'#b04ff7','DECIMAL(10,2)':'#b04ff7','DATE':'#f74f6a','DATETIME':'#f74f6a','TIMESTAMP':'#f74f6a','JSON':'#4f8ef7','JSONB':'#4f8ef7','BLOB':'#8a95b0','BYTEA':'#8a95b0'};
+
+  nodes.forEach(function(n){
+    var el=document.getElementById(n.id); if(!el)return;
+    var r=el.getBoundingClientRect(), cwr=canvasWrap.getBoundingClientRect();
+    var x=(r.left-cwr.left-panX)/scale+offX;
+    var y=(r.top-cwr.top-panY)/scale+offY;
+    var w=r.width/scale, h=r.height/scale;
+    var sub=n.subtype;
+
+    // card background + shadow
+    ctx.save();
+    ctx.shadowColor=light?'rgba(0,0,0,.18)':'rgba(0,0,0,.55)';
+    ctx.shadowBlur=14; ctx.shadowOffsetY=5;
+    ctx.fillStyle=light?'#ffffff':'#111318';
+    roundRect(ctx,x,y,w,h,8); ctx.fill();
+    ctx.restore();
+
+    // border
+    ctx.strokeStyle=COLORS.border[sub]||'rgba(80,100,160,.5)'; ctx.lineWidth=1.5;
+    roundRect(ctx,x,y,w,h,8); ctx.stroke();
+
+    // header bg (top-rounded only)
+    var hh=34;
+    ctx.fillStyle=COLORS.header[sub]||'rgba(79,142,247,.1)';
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(x+8,y); ctx.lineTo(x+w-8,y); ctx.quadraticCurveTo(x+w,y,x+w,y+8);
+    ctx.lineTo(x+w,y+hh); ctx.lineTo(x,y+hh); ctx.lineTo(x,y+8);
+    ctx.quadraticCurveTo(x,y,x+8,y); ctx.closePath(); ctx.fill(); ctx.restore();
+
+    // header divider
+    ctx.strokeStyle=COLORS.border[sub]||'rgba(80,100,160,.3)'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(x,y+hh); ctx.lineTo(x+w,y+hh); ctx.stroke();
+
+    // icon + title
+    var icons={'table':'▦','collection':'◎','graph-node':'●','graph-edge':'↔','namespace':'⌗','kv-flow':'→','measurement':'~','ts-task':'↓','column':'≡','cf-view':'◈','doc-index':'⊡'};
+    ctx.fillStyle=COLORS.title[sub]||'#4f8ef7';
+    ctx.font='11px JetBrains Mono, monospace';
+    ctx.fillText(icons[sub]||'·', x+9, y+21);
+    ctx.font='bold 12px Syne, sans-serif';
+    ctx.fillText((n.data.title||'').substring(0,28), x+24, y+22);
+
+    // rows — type-aware drawing
+    var rowY=y+hh+5;
+    var ROW_H=17;
+
+    function drawRow(name, type, badge, badgeColor){
+      if(rowY+ROW_H>y+h-4) return;
+      var nameColor=textMain, typeColor=typeColors[type]||textMuted;
+      // badge (PK/FK)
+      if(badge){
+        ctx.fillStyle=badgeColor||'rgba(247,200,79,.15)';
+        roundRect(ctx,x+8,rowY+1,18,ROW_H-4,2); ctx.fill();
+        ctx.fillStyle=badgeColor&&badgeColor.includes('200')?'#f7c84f':'#f78c4f';
+        ctx.font='bold 8px JetBrains Mono, monospace';
+        ctx.fillText(badge,x+9,rowY+10);
+      }
+      // name
+      ctx.fillStyle=nameColor;
+      ctx.font='11px JetBrains Mono, monospace';
+      ctx.fillText((name||'').substring(0,20),x+30,rowY+11);
+      // type pill
+      if(type){
+        var typeShort=(type||'').substring(0,14);
+        var tw=ctx.measureText(typeShort).width+8;
+        var tx2=x+w-tw-6;
+        ctx.fillStyle=light?'rgba(0,0,0,.07)':'rgba(255,255,255,.07)';
+        roundRect(ctx,tx2,rowY+2,tw,ROW_H-5,3); ctx.fill();
+        ctx.fillStyle=typeColor;
+        ctx.font='9.5px JetBrains Mono, monospace';
+        ctx.fillText(typeShort,tx2+4,rowY+11);
+      }
+      rowY+=ROW_H;
+    }
+
+    function drawSectionLabel(label, color){
+      if(rowY+12>y+h-4) return;
+      ctx.fillStyle=color||textMuted;
+      ctx.font='8px JetBrains Mono, monospace';
+      ctx.fillText(label.toUpperCase(),x+10,rowY+9);
+      rowY+=13;
+    }
+
+    if(sub==='table'){
+      (n.data.columns||[]).forEach(function(col){
+        var badge=col.pk?'PK':col.fk?'FK':null;
+        var badgeColor=col.pk?'rgba(247,200,79,.15)':'rgba(247,140,79,.15)';
+        drawRow(col.name, col.type, badge, badgeColor);
+      });
+    } else if(sub==='collection'){
+      (n.data.fields||[]).forEach(function(f){
+        drawRow(f.key, f.type, f.badge||null, 'rgba(79,142,247,.15)');
+        if(f.nested) f.nested.forEach(function(nf){ drawRow('  '+nf.key,nf.type,null,null); });
+      });
+    } else if(sub==='graph-node'||sub==='graph-edge'){
+      if(sub==='graph-edge'&&n.data.fromLabel){
+        ctx.fillStyle=textMuted; ctx.font='9px JetBrains Mono, monospace';
+        ctx.fillText('('+n.data.fromLabel+') → ('+n.data.toLabel+')',x+10,rowY+10); rowY+=14;
+      }
+      (n.data.props||[]).forEach(function(p){ drawRow(p.name,p.type,null,null); });
+    } else if(sub==='namespace'){
+      (n.data.keys||[]).forEach(function(k){ drawRow(k.pattern,k.type,null,null); });
+    } else if(sub==='measurement'){
+      drawSectionLabel('Tags','rgba(247,79,106,.7)');
+      (n.data.tags||[]).forEach(function(t){ drawRow(t.name,'string',null,null); });
+      drawSectionLabel('Fields',textMuted);
+      (n.data.fields||[]).forEach(function(f){ drawRow(f.name,f.type,null,null); });
+    } else if(sub==='column'||sub==='cf-view'){
+      drawSectionLabel('Partition Key','rgba(79,240,247,.7)');
+      (n.data.partitionKeys||[]).forEach(function(k){ drawRow(k.name,k.type,'PK','rgba(79,240,247,.15)'); });
+      if((n.data.clusteringKeys||[]).length){ drawSectionLabel('Clustering Key',textMuted); (n.data.clusteringKeys||[]).forEach(function(k){ drawRow(k.name,k.type,'CK','rgba(247,200,79,.15)'); }); }
+      (n.data.columns||[]).forEach(function(c){ drawRow(c.name,c.type,null,null); });
+    } else if(sub==='doc-index'){
+      ctx.fillStyle=textMuted; ctx.font='9px JetBrains Mono, monospace';
+      ctx.fillText('on: '+(n.data.collection||''),x+10,rowY+10); rowY+=14;
+      (n.data.fields||[]).forEach(function(f){ drawRow(f.key,(f.direction===1?'ASC':'DESC'),f.unique?'U':null,'rgba(61,232,160,.15)'); });
+    } else if(sub==='kv-flow'||sub==='ts-task'){
+      ctx.fillStyle=textMuted; ctx.font='9px JetBrains Mono, monospace';
+      ctx.fillText((n.data.from||'')+(sub==='kv-flow'?' → ':' ⟶ ')+(n.data.to||''),x+10,rowY+10); rowY+=14;
+      if(n.data.label){ ctx.fillStyle=textMuted; ctx.font='9px JetBrains Mono, monospace'; ctx.fillText(n.data.label.substring(0,30),x+10,rowY+10); rowY+=13; }
+      if(sub==='ts-task'&&n.data.aggregations){ (n.data.aggregations||[]).forEach(function(a){ drawRow(a.field,a.fn,null,null); }); }
+    }
+  });
+
+  return cvs;
+}
+
+function exportImage(){
+  if(!state.nodes.length){showMsg('Nichts zum Exportieren');return;}
+  showMsg('Exportiere PNG…');
+  setTimeout(function(){
+    var cvs=renderToCanvas(2);
+    if(!cvs)return;
+    var link=document.createElement('a');
+    link.download='db-schema-'+state.dbType+'.png';
+    link.href=cvs.toDataURL('image/png');
+    link.click();
+    showMsg('PNG exportiert ✓');
+  },50);
+}
+
+function exportPDF(){
+  if(!state.nodes.length){showMsg('Nichts zum Exportieren');return;}
+  showMsg('Rendere…');
+  setTimeout(function(){
+    var cvs=renderToCanvas(2);
+    if(!cvs){showMsg('Export fehlgeschlagen');return;}
+    var imgData=cvs.toDataURL('image/png');
+    var W=Math.round(cvs.width/2), H=Math.round(cvs.height/2);
+
+    var iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;visibility:hidden;';
+    document.body.appendChild(iframe);
+
+    // write content first, then hook print after load event
+    var doc=iframe.contentDocument||iframe.contentWindow.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>DB Schema</title><style>'+
+      '*{margin:0;padding:0;box-sizing:border-box;}'+
+      'html,body{width:'+W+'px;height:'+H+'px;overflow:hidden;background:#fff;}'+
+      'img{width:'+W+'px;height:'+H+'px;display:block;}'+
+      '@media print{'+
+        '@page{size:'+W+'px '+H+'px;margin:0;}'+
+        'html,body{width:'+W+'px;height:'+H+'px;}'+
+        'img{width:'+W+'px;height:'+H+'px;}'+
+      '}'+
+    '</style></head><body>'+
+    '<img src="'+imgData+'"/>'+
+    '</body></html>');
+    doc.close();
+
+    // wait for image to fully load inside iframe before printing
+    var img=doc.querySelector('img');
+    function doPrint(){
+      showMsg('Druckdialog → Als PDF speichern');
+      try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){}
+      setTimeout(function(){
+        if(document.body.contains(iframe)) document.body.removeChild(iframe);
+      },5000);
+    }
+    if(img&&!img.complete){
+      img.onload=doPrint;
+      img.onerror=doPrint;
+    } else {
+      setTimeout(doPrint, 200);
+    }
+  },80);
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+var codePanelOpen=false;
+var activeCodeTab='';
+
+var CODE_TABS={
+  relational:[{id:'sql',label:'SQL DDL'}],
+  document:[{id:'mongo',label:'MongoDB'}],
+  graph:[{id:'cypher',label:'Cypher'}],
+  keyvalue:[{id:'redis',label:'Redis'}],
+  timeseries:[{id:'influx',label:'InfluxDB'}],
+  column:[{id:'cql',label:'CQL'}]
+};
+
+function setupCodePanel(){
+  // resize drag
+  var resizer=document.getElementById('code-panel-resize');
+  var panel=document.getElementById('code-panel');
+  var dragging=false,startX=0,startW=0;
+  resizer.addEventListener('mousedown',function(e){
+    dragging=true; startX=e.clientX; startW=panel.offsetWidth; e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(!dragging)return;
+    var w=Math.max(180,Math.min(600,startW+(startX-e.clientX)));
+    panel.style.width=w+'px';
+  });
+  document.addEventListener('mouseup',function(){dragging=false;});
+}
+
+function toggleCodePanel(){
+  codePanelOpen=!codePanelOpen;
+  var panel=document.getElementById('code-panel');
+  var resizer=document.getElementById('code-panel-resize');
+  var btn=document.getElementById('btn-code');
+  panel.style.display=codePanelOpen?'flex':'none';
+  resizer.style.display=codePanelOpen?'block':'none';
+  if(btn) btn.style.borderColor=codePanelOpen?'var(--accent)':'';
+  if(codePanelOpen) refreshCodePanel();
+}
+
+function refreshCodePanel(){
+  if(!codePanelOpen)return;
+  var tabs=CODE_TABS[state.dbType]||[];
+  // also add JSON tab
+  var allTabs=[{id:'json',label:'JSON'}].concat(tabs);
+  if(!activeCodeTab||!allTabs.find(function(t){return t.id===activeCodeTab;})){
+    activeCodeTab=allTabs[1]?allTabs[1].id:allTabs[0].id;
+  }
+  // render tab bar
+  var tabHtml=allTabs.map(function(t){
+    return '<div class="code-tab'+(t.id===activeCodeTab?' active':'')+'" onclick="setCodeTab(\''+t.id+'\')">'+t.label+'</div>';
+  }).join('');
+  document.getElementById('code-tabs').innerHTML=tabHtml;
+  renderCodeOutput();
+}
+
+function setCodeTab(id){
+  activeCodeTab=id;
+  refreshCodePanel();
+}
+
+function renderCodeOutput(){
+  var out=document.getElementById('code-output');
+  if(!out)return;
+  var raw='';
+  if(activeCodeTab==='sql') raw=genSQL();
+  else if(activeCodeTab==='cql') raw=genCQL();
+  else if(activeCodeTab==='cypher') raw=genCypher();
+  else if(activeCodeTab==='mongo') raw=genMongo();
+  else if(activeCodeTab==='influx') raw=genInflux();
+  else if(activeCodeTab==='redis') raw=genRedis();
+  else if(activeCodeTab==='json') raw=JSON.stringify({version:'1.0',dbType:state.dbType,nodes:state.nodes,relations:state.relations},null,2);
+  out.innerHTML=highlight(raw,activeCodeTab);
+}
+
+function highlight(code,type){
+  // simple syntax highlighter
+  var h=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if(type==='sql'||type==='cql'){
+    h=h.replace(/\b(CREATE|TABLE|ALTER|ADD|CONSTRAINT|FOREIGN|KEY|PRIMARY|REFERENCES|NOT|NULL|IF|EXISTS|KEYSPACE|WITH|USE|REPLICATION|CLUSTERING|ORDER|BY|INT|TEXT|UUID|TIMESTAMP|BOOLEAN|BIGINT|FLOAT|DECIMAL|DOUBLE|BLOB|COUNTER|SERIAL|VARCHAR|CHAR|DATE|DATETIME|JSON|JSONB|BYTEA|ENUM|ARRAY)\b/g,'<span class="kw">$1</span>');
+    h=h.replace(/(--[^\n]*)/g,'<span class="cm">$1</span>');
+    h=h.replace(/`([^`]+)`/g,'<span class="pk">$1</span>');
+  } else if(type==='cypher'){
+    h=h.replace(/\b(CREATE|CONSTRAINT|FOR|REQUIRE|IS|UNIQUE|MATCH|RETURN|WHERE|WITH|MERGE|SET)\b/g,'<span class="kw">$1</span>');
+    h=h.replace(/(\/\/[^\n]*)/g,'<span class="cm">$1</span>');
+    h=h.replace(/:([A-Z_]+)/g,':<span class="ty">$1</span>');
+  } else if(type==='mongo'){
+    h=h.replace(/\b(db|createCollection|runCommand|collMod|validator)\b/g,'<span class="kw">$1</span>');
+    h=h.replace(/(\/\/[^\n]*)/g,'<span class="cm">$1</span>');
+    h=h.replace(/"([^"]+)":/g,'"<span class="pk">$1</span>":');
+  } else if(type==='json'){
+    h=h.replace(/"([^"]+)":/g,'"<span class="pk">$1</span>":');
+    h=h.replace(/:\s*"([^"]+)"/g,': "<span class="str">$1</span>"');
+    h=h.replace(/:\s*(true|false|null)/g,': <span class="kw">$1</span>');
+  } else if(type==='redis'){
+    h=h.replace(/^(#[^\n]*)/gm,'<span class="cm">$1</span>');
+    h=h.replace(/\b(HSET|RPUSH|SADD|SET|GET|ZADD|EXPIRE|TTL|DEL)\b/g,'<span class="kw">$1</span>');
+  } else if(type==='influx'){
+    h=h.replace(/(\/\/[^\n]*)/g,'<span class="cm">$1</span>');
+  }
+  return h;
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function showMsg(txt){
+  document.querySelectorAll('.msg').forEach(function(m){m.remove();});
+  var el=document.createElement('div'); el.className='msg'; el.textContent=txt;
+  document.body.appendChild(el); setTimeout(function(){el.remove();},2500);
+}
+
+// ── DEMO DATA ─────────────────────────────────────────
+var DEMOS = {
+  relational: function(){
+    var tables=[
+      {title:'users',x:40,y:60,columns:[
+        {name:'id',type:'SERIAL',pk:true,fk:false,nn:true},
+        {name:'email',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+        {name:'name',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+        {name:'password_hash',type:'TEXT',pk:false,fk:false,nn:true},
+        {name:'created_at',type:'TIMESTAMP',pk:false,fk:false,nn:false}
+      ]},
+      {title:'orders',x:340,y:60,columns:[
+        {name:'id',type:'SERIAL',pk:true,fk:false,nn:true},
+        {name:'user_id',type:'INT',pk:false,fk:true,nn:true},
+        {name:'total',type:'DECIMAL(10,2)',pk:false,fk:false,nn:true},
+        {name:'status',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+        {name:'created_at',type:'TIMESTAMP',pk:false,fk:false,nn:false}
+      ]},
+      {title:'products',x:640,y:60,columns:[
+        {name:'id',type:'SERIAL',pk:true,fk:false,nn:true},
+        {name:'name',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+        {name:'price',type:'DECIMAL(10,2)',pk:false,fk:false,nn:true},
+        {name:'stock',type:'INT',pk:false,fk:false,nn:true},
+        {name:'category_id',type:'INT',pk:false,fk:true,nn:false}
+      ]},
+      {title:'order_items',x:440,y:320,columns:[
+        {name:'id',type:'SERIAL',pk:true,fk:false,nn:true},
+        {name:'order_id',type:'INT',pk:false,fk:true,nn:true},
+        {name:'product_id',type:'INT',pk:false,fk:true,nn:true},
+        {name:'quantity',type:'INT',pk:false,fk:false,nn:true},
+        {name:'unit_price',type:'DECIMAL(10,2)',pk:false,fk:false,nn:true}
+      ]},
+      {title:'categories',x:640,y:320,columns:[
+        {name:'id',type:'SERIAL',pk:true,fk:false,nn:true},
+        {name:'name',type:'VARCHAR(255)',pk:false,fk:false,nn:true},
+        {name:'parent_id',type:'INT',pk:false,fk:true,nn:false}
+      ]}
+    ];
+    tables.forEach(function(t){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'relational',subtype:'table',x:t.x,y:t.y,data:{title:t.title,columns:t.columns}};
+      state.nodes.push(node); renderNode(node);
+    });
+    addRelByTitle('orders','user_id','users','id');
+    addRelByTitle('order_items','order_id','orders','id');
+    addRelByTitle('order_items','product_id','products','id');
+    addRelByTitle('products','category_id','categories','id');
+    showMsg('Demo: E-Commerce Schema (PostgreSQL)');
+  },
+
+  document: function(){
+    var cols=[
+      {title:'users',x:40,y:40,fields:[
+        {key:'_id',type:'ObjectId',required:true,badge:'PK'},
+        {key:'email',type:'String',required:true},
+        {key:'name',type:'String',required:true},
+        {key:'role',type:'String',required:false},
+        {key:'profile',type:'Object',required:false,nested:[
+          {key:'avatar',type:'String'},{key:'bio',type:'String'},{key:'location',type:'String'}
+        ]},
+        {key:'createdAt',type:'Date',required:true}
+      ]},
+      {title:'posts',x:320,y:40,fields:[
+        {key:'_id',type:'ObjectId',required:true,badge:'PK'},
+        {key:'authorId',type:'ObjectId',required:true,badge:'$ref→users'},
+        {key:'title',type:'String',required:true},
+        {key:'content',type:'String',required:true},
+        {key:'tags',type:'Array',required:false},
+        {key:'comments',type:'Array',required:false,nested:[
+          {key:'userId',type:'ObjectId'},{key:'text',type:'String'},{key:'createdAt',type:'Date'}
+        ]},
+        {key:'stats',type:'Object',required:false,nested:[
+          {key:'views',type:'Number'},{key:'likes',type:'Number'}
+        ]},
+        {key:'publishedAt',type:'Date',required:false}
+      ]},
+      {title:'products',x:620,y:40,fields:[
+        {key:'_id',type:'ObjectId',required:true,badge:'PK'},
+        {key:'sku',type:'String',required:true},
+        {key:'name',type:'String',required:true},
+        {key:'price',type:'Decimal128',required:true},
+        {key:'variants',type:'Array',required:false,nested:[
+          {key:'color',type:'String'},{key:'size',type:'String'},{key:'stock',type:'Number'}
+        ]},
+        {key:'categories',type:'Array',required:false},
+        {key:'metadata',type:'Mixed',required:false}
+      ]}
+    ];
+    cols.forEach(function(c){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'document',subtype:'collection',x:c.x,y:c.y,data:{title:c.title,fields:c.fields}};
+      state.nodes.push(node); renderNode(node);
+    });
+    // index on users.email
+    var idxId='node_'+(state.nextId++);
+    var idxNode={id:idxId,type:'document',subtype:'doc-index',x:40,y:380,data:{title:'users_email_idx',collection:'users',fields:[{key:'email',direction:1,unique:true}],sparse:false,background:true}};
+    state.nodes.push(idxNode); renderNode(idxNode);
+    // compound index on posts
+    var idxId2='node_'+(state.nextId++);
+    var idxNode2={id:idxId2,type:'document',subtype:'doc-index',x:320,y:380,data:{title:'posts_author_date_idx',collection:'posts',fields:[{key:'authorId',direction:1,unique:false},{key:'publishedAt',direction:-1,unique:false}],sparse:false,background:true}};
+    state.nodes.push(idxNode2); renderNode(idxNode2);
+    // doc relations: posts.authorId → users._id
+    state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:state.nodes[1].id,fromCol:'authorId',toNodeId:state.nodes[0].id,toCol:'_id',docRef:true,refType:'$ref (Referenced)'});
+    drawRelations();
+    showMsg('Demo: Blog / Shop Schema (MongoDB)');
+  },
+
+  graph: function(){
+    var defs=[
+      {sub:'graph-node',title:'Person',x:40,y:60,props:[{name:'id',type:'Integer'},{name:'name',type:'String'},{name:'email',type:'String'},{name:'born',type:'Integer'}]},
+      {sub:'graph-node',title:'Movie', x:380,y:60,props:[{name:'id',type:'Integer'},{name:'title',type:'String'},{name:'released',type:'Integer'},{name:'tagline',type:'String'}]},
+      {sub:'graph-node',title:'Genre', x:700,y:60,props:[{name:'id',type:'Integer'},{name:'name',type:'String'}]},
+      {sub:'graph-edge',title:'ACTED_IN',x:40, y:330,directed:true,fromLabel:'Person',toLabel:'Movie', props:[{name:'role',type:'String'}]},
+      {sub:'graph-edge',title:'DIRECTED',x:270,y:330,directed:true,fromLabel:'Person',toLabel:'Movie', props:[{name:'year',type:'Integer'}]},
+      {sub:'graph-edge',title:'IN_GENRE',x:500,y:330,directed:true,fromLabel:'Movie', toLabel:'Genre', props:[{name:'primary',type:'Boolean'}]},
+      {sub:'graph-edge',title:'FOLLOWS', x:700,y:330,directed:true,fromLabel:'Person',toLabel:'Person',props:[{name:'since',type:'Date'}]}
+    ];
+    defs.forEach(function(d){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'graph',subtype:d.sub,x:d.x,y:d.y,
+        data:{title:d.title,props:d.props,directed:d.directed,fromLabel:d.fromLabel||null,toLabel:d.toLabel||null}};
+      state.nodes.push(node); renderNode(node);
+    });
+    // Draw visual SVG arrows: edge card → fromNode, edge card → toNode
+    // This is done via graph-specific relations stored separately
+    // We add graph visual links to state.relations using center-to-center
+    function findNode(title){ return state.nodes.find(function(n){return n.data.title===title&&n.subtype==='graph-node';}); }
+    state.nodes.filter(function(n){return n.subtype==='graph-edge';}).forEach(function(edge){
+      var fl=edge.data.fromLabel, tl=edge.data.toLabel;
+      if(fl){ var fn=findNode(fl); if(fn) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:edge.id,fromCol:'__graph__',toNodeId:fn.id,toCol:'__graph__',graphLink:true,directed:edge.data.directed}); }
+      if(tl){ var tn=findNode(tl); if(tn) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:fn&&fl===tl?edge.id:edge.id,fromCol:'__graph2__',toNodeId:tn.id,toCol:'__graph2__',graphLink:true,directed:edge.data.directed,isTo:true}); }
+    });
+    drawRelations();
+    showMsg('Demo: Movie Graph Schema (Neo4j)');
+  },
+
+  keyvalue: function(){
+    var ns=[
+      {title:'session',x:40,y:40,keys:[
+        {pattern:'session:{token}',type:'Hash',ttl:'1h'},
+        {pattern:'session:{token}:data',type:'String',ttl:'1h'},
+        {pattern:'sessions:active',type:'Set',ttl:'—'}
+      ]},
+      {title:'user',x:40,y:250,keys:[
+        {pattern:'user:{id}:profile',type:'Hash',ttl:'—'},
+        {pattern:'user:{id}:feed',type:'List',ttl:'12h'},
+        {pattern:'user:{id}:friends',type:'Set',ttl:'—'},
+        {pattern:'user:{id}:score',type:'Sorted Set',ttl:'—'}
+      ]},
+      {title:'cache',x:320,y:40,keys:[
+        {pattern:'cache:product:{id}',type:'String',ttl:'5m'},
+        {pattern:'cache:category:{slug}',type:'String',ttl:'10m'},
+        {pattern:'cache:homepage',type:'String',ttl:'1m'}
+      ]},
+      {title:'rate_limit',x:320,y:250,keys:[
+        {pattern:'rl:{ip}:requests',type:'String',ttl:'1m'},
+        {pattern:'rl:{ip}:{endpoint}',type:'String',ttl:'1m'},
+        {pattern:'rl:blocked',type:'Set',ttl:'24h'}
+      ]},
+      {title:'queue',x:600,y:40,keys:[
+        {pattern:'queue:emails',type:'List',ttl:'—'},
+        {pattern:'queue:notifications',type:'Stream',ttl:'7d'},
+        {pattern:'queue:jobs:{type}',type:'Sorted Set',ttl:'—'}
+      ]},
+      {title:'stats',x:600,y:250,keys:[
+        {pattern:'stats:dau:{date}',type:'HyperLogLog',ttl:'90d'},
+        {pattern:'stats:page:{url}:views',type:'String',ttl:'—'},
+        {pattern:'stats:realtime',type:'Sorted Set',ttl:'1h'}
+      ]}
+    ];
+    ns.forEach(function(n){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'keyvalue',subtype:'namespace',x:n.x,y:n.y,data:{title:n.title,keys:n.keys}};
+      state.nodes.push(node); renderNode(node);
+    });
+    // KV flow nodes
+    var flows=[
+      {title:'Session→User',from:'session',to:'user',type:'reads',label:'HGET user:{id}:profile'},
+      {title:'API→Cache',from:'cache',to:'stats',type:'invalidates',label:'DEL cache:* on write'},
+      {title:'App→Queue',from:'queue',to:'stats',type:'pipeline',label:'RPUSH → BLPOP worker'}
+    ];
+    flows.forEach(function(f){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'keyvalue',subtype:'kv-flow',x:0,y:0,data:{title:f.title,from:f.from,to:f.to,type:f.type,label:f.label}};
+      state.nodes.push(node); renderNode(node);
+    });
+    showMsg('Demo: Web-App Cache & Session (Redis)');
+  },
+
+  timeseries: function(){
+    var ms=[
+      {title:'cpu',x:40,y:40,retention:'30d',
+        tags:[{name:'host'},{name:'region'},{name:'datacenter'}],
+        fields:[{name:'usage_user',type:'float'},{name:'usage_system',type:'float'},{name:'usage_idle',type:'float'},{name:'load_avg',type:'float'}]},
+      {title:'memory',x:360,y:40,retention:'30d',
+        tags:[{name:'host'},{name:'region'}],
+        fields:[{name:'used_bytes',type:'integer'},{name:'free_bytes',type:'integer'},{name:'used_percent',type:'float'},{name:'swap_used',type:'integer'}]},
+      {title:'network',x:680,y:40,retention:'14d',
+        tags:[{name:'host'},{name:'interface'},{name:'direction'}],
+        fields:[{name:'bytes_per_sec',type:'integer'},{name:'packets_per_sec',type:'integer'},{name:'errors',type:'integer'}]},
+      {title:'http_requests',x:40,y:320,retention:'7d',
+        tags:[{name:'service'},{name:'endpoint'},{name:'method'},{name:'status_code'}],
+        fields:[{name:'response_time_ms',type:'float'},{name:'request_count',type:'integer'},{name:'error_count',type:'integer'}]},
+      {title:'db_queries',x:360,y:320,retention:'7d',
+        tags:[{name:'db_name'},{name:'query_type'},{name:'table_name'}],
+        fields:[{name:'duration_ms',type:'float'},{name:'rows_scanned',type:'integer'},{name:'cache_hit',type:'boolean'}]},
+      {title:'cpu_5m',x:680,y:320,retention:'1y',
+        tags:[{name:'host'},{name:'region'}],
+        fields:[{name:'usage_user_mean',type:'float'},{name:'load_avg_mean',type:'float'}]}
+    ];
+    ms.forEach(function(m){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'timeseries',subtype:'measurement',x:m.x,y:m.y,data:{title:m.title,retention:m.retention,tags:m.tags,fields:m.fields}};
+      state.nodes.push(node); renderNode(node);
+    });
+    // downsampling task: cpu → cpu_5m
+    var taskId='node_'+(state.nextId++);
+    var taskNode={id:taskId,type:'timeseries',subtype:'ts-task',x:0,y:0,
+      data:{title:'cpu_downsample_5m',every:'5m',offset:'0s',from:'cpu',to:'cpu_5m',retention:'1y',
+        aggregations:[{field:'usage_user',fn:'mean'},{field:'usage_system',fn:'mean'},{field:'load_avg',fn:'mean'}]}};
+    state.nodes.push(taskNode); renderNode(taskNode);
+    // relation: task reads from cpu, writes to cpu_5m
+    var cpuNode=state.nodes.find(function(n){return n.data.title==='cpu'&&n.subtype==='measurement';});
+    var cpu5mNode=state.nodes.find(function(n){return n.data.title==='cpu_5m'&&n.subtype==='measurement';});
+    if(cpuNode) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:taskId,fromCol:'__ts_from__',toNodeId:cpuNode.id,toCol:'__ts__',tsLink:true,isFrom:true});
+    if(cpu5mNode) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:taskId,fromCol:'__ts_to__',toNodeId:cpu5mNode.id,toCol:'__ts__',tsLink:true,isTo:true});
+    drawRelations();
+    showMsg('Demo: Server Monitoring Schema (InfluxDB)');
+  },
+
+  column: function(){
+    var tables=[
+      {title:'users_by_email',x:40,y:40,
+        partitionKeys:[{name:'email',type:'text'}],
+        clusteringKeys:[],
+        columns:[{name:'user_id',type:'uuid'},{name:'name',type:'text'},{name:'created_at',type:'timestamp'},{name:'status',type:'text'}]},
+      {title:'user_events',x:40,y:280,
+        partitionKeys:[{name:'user_id',type:'uuid'}],
+        clusteringKeys:[{name:'event_time',type:'timestamp',order:'DESC'},{name:'event_id',type:'uuid',order:'ASC'}],
+        columns:[{name:'event_type',type:'text'},{name:'payload',type:'blob'},{name:'ip_address',type:'text'}]},
+      {title:'messages',x:380,y:40,
+        partitionKeys:[{name:'conversation_id',type:'uuid'}],
+        clusteringKeys:[{name:'sent_at',type:'timestamp',order:'DESC'},{name:'message_id',type:'uuid',order:'ASC'}],
+        columns:[{name:'sender_id',type:'uuid'},{name:'content',type:'text'},{name:'read',type:'boolean'}]},
+      {title:'product_catalog',x:380,y:280,
+        partitionKeys:[{name:'category',type:'text'}],
+        clusteringKeys:[{name:'product_id',type:'uuid',order:'ASC'}],
+        columns:[{name:'name',type:'text'},{name:'price',type:'decimal'},{name:'stock',type:'int'},{name:'attributes',type:'map<text,text>'}]},
+      {title:'time_series_data',x:720,y:40,
+        partitionKeys:[{name:'sensor_id',type:'uuid'},{name:'date',type:'text'}],
+        clusteringKeys:[{name:'recorded_at',type:'timestamp',order:'DESC'}],
+        columns:[{name:'value',type:'double'},{name:'unit',type:'text'},{name:'quality',type:'int'}]}
+    ];
+    tables.forEach(function(t){
+      var id='node_'+(state.nextId++);
+      var node={id:id,type:'column',subtype:'column',x:t.x,y:t.y,data:{title:t.title,partitionKeys:t.partitionKeys,clusteringKeys:t.clusteringKeys,columns:t.columns}};
+      state.nodes.push(node); renderNode(node);
+    });
+    // Materialized View of user_events by event_type
+    var mvId='node_'+(state.nextId++);
+    var mvNode={id:mvId,type:'column',subtype:'cf-view',x:0,y:0,
+      data:{title:'user_events_by_type',baseTable:'user_events',
+        partitionKeys:[{name:'event_type',type:'text'}],
+        clusteringKeys:[{name:'event_time',type:'timestamp',order:'DESC'}],
+        columns:[{name:'user_id',type:'uuid'},{name:'payload',type:'blob'}]}};
+    state.nodes.push(mvNode); renderNode(mvNode);
+    // relation: view derived from user_events
+    var ueNode=state.nodes.find(function(n){return n.data.title==='user_events';});
+    if(ueNode) state.relations.push({id:'rel_'+(state.nextId++),fromNodeId:mvId,fromCol:'__cf_view__',toNodeId:ueNode.id,toCol:'__cf_view__',cfViewLink:true});
+    drawRelations();
+    showMsg('Demo: Chat / IoT Schema (Cassandra)');
+  }
+};
+
+function loadDemo(){
+  _demoMode=true;
+  canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+  canvasSvg.innerHTML='';
+  state.nodes=[]; state.relations=[]; state.nextId=1;
+  if(DEMOS[state.dbType]) DEMOS[state.dbType]();
+  _demoMode=false;
+  updateHint();
+  undoStack=[]; redoStack=[]; updateUndoButtons();
+  setTimeout(function(){ autoLayout(); refreshCodePanel(); }, 30);
+}
+
+function loadDemoForCurrentType(){
+  if(state.nodes.length && !confirm('Canvas leeren und Demo laden?')) return;
+  _demoMode=true;
+  // hard reset
+  canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+  canvasSvg.innerHTML='';
+  state.nodes=[]; state.relations=[]; state.nextId=1;
+  if(DEMOS[state.dbType]) DEMOS[state.dbType]();
+  _demoMode=false;
+  undoStack=[]; redoStack=[]; updateUndoButtons();
+  updateHint();
+  setTimeout(function(){ autoLayout(); refreshCodePanel(); }, 30);
+}
+
+// Helper: add relation by table title instead of array index (safe for reloads)
+function addRelByTitle(fromTitle, fromCol, toTitle, toCol){
+  var fromNode=state.nodes.find(function(n){return n.data&&n.data.title===fromTitle;});
+  var toNode=state.nodes.find(function(n){return n.data&&n.data.title===toTitle;});
+  if(fromNode&&toNode){
+    // also set references on the column
+    var col=fromNode.data.columns&&fromNode.data.columns.find(function(c){return c.name===fromCol;});
+    if(col) col.references=toTitle+'.'+toCol;
+    addRelation(fromNode.id, fromCol, toNode.id, toCol);
+  }
+}
+</script>
+</body>
+</html>

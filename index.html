@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architect Suite</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08090c;--bg2:#0f1116;--bg3:#161b24;--border:#1e2535;--text:#e8ecf4;--text2:#6a7590;--accent:#4f8ef7;--green:#3de8a0;--purple:#7c5cfc;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:32px;letter-spacing:-1px;margin-bottom:8px;text-align:center;}
+.logo .a{color:var(--accent);}
+.logo .b{color:var(--purple);}
+.subtitle{font-size:12px;color:var(--text2);text-align:center;margin-bottom:56px;letter-spacing:1px;}
+.cards{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;max-width:900px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:36px 32px;width:380px;text-decoration:none;color:var(--text);transition:all .2s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:14px;}
+.card.db::before{background:radial-gradient(ellipse at 50% 0%,rgba(79,142,247,.12) 0%,transparent 70%);}
+.card.pa::before{background:radial-gradient(ellipse at 50% 0%,rgba(124,92,252,.12) 0%,transparent 70%);}
+.card:hover{transform:translateY(-3px);}
+.card.db:hover{border-color:rgba(79,142,247,.4);box-shadow:0 12px 40px rgba(79,142,247,.1);}
+.card.pa:hover{border-color:rgba(124,92,252,.4);box-shadow:0 12px 40px rgba(124,92,252,.1);}
+.card:hover::before{opacity:1;}
+.card-icon{font-size:36px;margin-bottom:16px;display:block;}
+.card-title{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;margin-bottom:10px;}
+.card.db .card-title{color:var(--accent);}
+.card.pa .card-title{color:var(--purple);}
+.card-desc{font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:20px;}
+.card-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tag{font-size:9.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text2);background:var(--bg3);}
+.card.db .tag{border-color:rgba(79,142,247,.25);color:rgba(79,142,247,.8);}
+.card.pa .tag{border-color:rgba(124,92,252,.25);color:rgba(124,92,252,.8);}
+.card-arrow{position:absolute;bottom:28px;right:28px;font-size:20px;opacity:.4;transition:opacity .2s,transform .2s;}
+.card:hover .card-arrow{opacity:1;transform:translateX(4px);}
+.footer{margin-top:52px;font-size:10px;color:var(--text2);text-align:center;line-height:1.9;}
+.footer b{color:rgba(255,255,255,.35);}
+</style>
+</head>
+<body>
+  <div class="logo"><span class="a">DB</span>&<span class="b">Project</span> Architect</div>
+
+
+  <div class="cards">
+    <a href="db-designer.html" class="card db">
+      <span class="card-icon">▦</span>
+      <div class="card-title">DB Architect</div>
+      <div class="card-desc">
+        Entwirf und visualisiere Datenbankarchitekturen für alle gängigen Datenbanktypen mit ER-Diagrammen, Verbindungen und Code-Export.
+      </div>
+      <div class="card-tags">
+        <span class="tag">Relational · SQL</span>
+        <span class="tag">Document · MongoDB</span>
+        <span class="tag">Graph · Neo4j</span>
+        <span class="tag">Key-Value · Redis</span>
+        <span class="tag">Time-Series</span>
+        <span class="tag">Column-Family</span>
+        <span class="tag">PNG &amp; PDF Export</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a href="project-architect.html" class="card pa">
+      <span class="card-icon">◈</span>
+      <div class="card-title">Project Architect</div>
+      <div class="card-desc">
+        Erstelle professionelle Projektdiagramme: Mindmaps für Brainstorming, Programmablaufpläne mit DIN-Formen, Projektstrukturpläne und UML-Klassendiagramme mit vollständigen Beziehungstypen.
+      </div>
+      <div class="card-tags">
+        <span class="tag">🧠 Mindmap</span>
+        <span class="tag">↪ PAP / Flowchart</span>
+        <span class="tag">📁 Projektstrukturplan</span>
+        <span class="tag">🔷 UML Klassendiagramm</span>
+        <span class="tag">Auto-Layout</span>
+        <span class="tag">PNG &amp; PDF Export</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+  </div>
+</body>
+</html>

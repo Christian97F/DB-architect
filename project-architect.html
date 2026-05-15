@@ -749,7 +749,6 @@ function openModal(title,body,onSave,onDelete){
   var delBtn=onDelete?'<button class="btn danger" style="margin-right:auto" onclick="window._sdel&&window._sdel()">✕ Löschen</button>':'';
   o.innerHTML='<div class="mo"><div class="mo-hd"><h2>'+title+'</h2><button class="nd-del" onclick="closeModal()" style="width:22px;height:22px;font-size:13px">✕</button></div><div class="mo-bd">'+body+'</div><div class="mo-ft">'+delBtn+'<button class="btn" style="background:var(--accent2);border-color:var(--accent);color:#fff" onclick="window._sv&&window._sv()">Speichern</button><button class="btn" onclick="closeModal()">Abbrechen</button></div></div>';
   document.body.appendChild(o);window._sv=onSave;window._sdel=onDelete||null;
-  o.addEventListener('click',function(e){if(e.target===o)closeModal();});
 }
 function closeModal(){var o=document.getElementById('mo');if(o)o.remove();}
 
@@ -1261,7 +1260,6 @@ function exportMermaid(){
       '<button class="btn" onclick="closeModal()">Schließen</button>'+
     '</div></div>';
   document.body.appendChild(o);
-  o.addEventListener('click',function(e){if(e.target===o)closeModal();});
 }
 
 function copyMermaid(){

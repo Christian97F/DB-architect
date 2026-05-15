@@ -159,6 +159,11 @@ body.light #cw{background:#f2f4f9;}
     <button class="btn" id="bcn" onclick="toggleConnect()">⟶ Verbinden</button>
     <button class="btn" onclick="autoLayout()">◈ Layout</button>
     <button class="btn" onclick="doDemo()">★ Demo</button>
+    <div class="sep"></div>
+    <button class="btn" onclick="exportJSON()" title="Als JSON-Datei speichern">💾 Speichern</button>
+    <button class="btn" onclick="importJSON()" title="JSON-Datei laden">📂 Laden</button>
+    <button class="btn" onclick="exportMermaid()" title="Als Mermaid-Code exportieren">⬡ Mermaid</button>
+    <div class="sep"></div>
     <button class="btn" onclick="exportImg('png')">🖼 PNG</button>
     <button class="btn" onclick="exportImg('pdf')">📄 PDF</button>
     <button class="btn danger" onclick="clearAll()">✕ Leeren</button>
@@ -1206,6 +1211,157 @@ function drawNodesOnCanvas(ctx,offX,offY){
   });
 }
 function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+
+// ── JSON IMPORT / EXPORT ──────────────────────────────
+function exportJSON(){
+  var data=JSON.stringify({version:'1.0',type:S.type,nodes:S.nodes,links:S.links,nid:S.nid},null,2);
+  var blob=new Blob([data],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='diagram-'+S.type+'.json';a.click();URL.revokeObjectURL(a.href);
+  showMsg('JSON gespeichert ✓');
+}
+
+function importJSON(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=function(){
+    var file=inp.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var d=JSON.parse(e.target.result);
+        if(!Array.isArray(d.nodes)||!Array.isArray(d.links))throw new Error('Ungültiges Format');
+        snap('import');
+        S.type=d.type||'mindmap';S.nodes=d.nodes;S.links=d.links;S.nid=d.nid||1;
+        document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.t===S.type);});
+        updateSB();redrawAll();
+        setTimeout(fitAll,60);
+        showMsg('Geladen: '+S.nodes.length+' Elemente ✓');
+      }catch(err){showMsg('Fehler: '+err.message);}
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+
+// ── MERMAID EXPORT ────────────────────────────────────
+function exportMermaid(){
+  var txt=buildMermaid();
+  if(!txt){showMsg('Kein Mermaid-Export für diesen Typ');return;}
+  closeModal();
+  var o=document.createElement('div');o.className='mo-ov';o.id='mo';
+  o.innerHTML='<div class="mo" style="max-width:660px;">'+
+    '<div class="mo-hd"><h2>⬡ Mermaid Export</h2><button class="nd-del" onclick="closeModal()" style="width:22px;height:22px;font-size:13px">✕</button></div>'+
+    '<div class="mo-bd">'+
+      '<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">In GitHub README, Notion oder Obsidian zwischen <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;">```mermaid … ```</code> einfügen:</div>'+
+      '<textarea id="mm-out" class="fi" readonly style="height:240px;resize:vertical;font-size:10.5px;line-height:1.6;white-space:pre;font-family:JetBrains Mono,monospace;">'+esc(txt)+'</textarea>'+
+    '</div>'+
+    '<div class="mo-ft">'+
+      '<button class="btn" style="margin-right:auto;border-color:var(--blue);color:var(--blue)" onclick="copyMermaid()">⎘ Kopieren</button>'+
+      '<button class="btn" style="background:var(--accent2);border-color:var(--accent);color:#fff" onclick="dlMermaid()">⬇ .md herunterladen</button>'+
+      '<button class="btn" onclick="closeModal()">Schließen</button>'+
+    '</div></div>';
+  document.body.appendChild(o);
+  o.addEventListener('click',function(e){if(e.target===o)closeModal();});
+}
+
+function copyMermaid(){
+  var ta=document.getElementById('mm-out');if(!ta)return;
+  var txt='```mermaid\n'+ta.value+'\n```\n';
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(function(){showMsg('Kopiert ✓');}).catch(function(){ta.select();document.execCommand('copy');showMsg('Kopiert ✓');});
+  } else {ta.select();document.execCommand('copy');showMsg('Kopiert ✓');}
+}
+
+function dlMermaid(){
+  var ta=document.getElementById('mm-out');if(!ta)return;
+  var blob=new Blob(['```mermaid\n'+ta.value+'\n```\n'],{type:'text/markdown'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='diagram-'+S.type+'.md';a.click();URL.revokeObjectURL(a.href);
+  showMsg('.md heruntergeladen ✓');closeModal();
+}
+
+function buildMermaid(){
+  var lines=[];
+
+  if(S.type==='mindmap'){
+    lines.push('mindmap');
+    var cmap={},hpar={};
+    S.nodes.forEach(function(n){cmap[n.id]=[];});
+    S.links.forEach(function(l){if(cmap[l.from])cmap[l.from].push(l.to);hpar[l.to]=true;});
+    var roots=S.nodes.filter(function(n){return !hpar[n.id];});
+    var visited={};
+    function writeN(id,depth){
+      if(visited[id])return;visited[id]=true;
+      var n=S.nodes.find(function(x){return x.id===id;});if(!n)return;
+      var ind='  '.repeat(depth+1);
+      var t=(n.data.title||'').replace(/[()[\]{}]/g,'');
+      if(n.s==='mm-root') lines.push(ind+'root(('+t+'))');
+      else if(n.s==='mm-branch') lines.push(ind+'('+t+')');
+      else lines.push(ind+t);
+      (cmap[id]||[]).forEach(function(c){writeN(c,depth+1);});
+    }
+    roots.forEach(function(r){writeN(r.id,0);});
+    S.nodes.forEach(function(n){if(!visited[n.id])writeN(n.id,1);});
+  }
+
+  else if(S.type==='pap'){
+    lines.push('flowchart TD');
+    var SH={'pap-term':['([','])'],'pap-proc':['[',']'],'pap-dec':['{','}'],'pap-io':['[/','/]'],'pap-sub':['[[',']]']};
+    S.nodes.forEach(function(n){
+      var sid=n.id.replace(/-/g,'_');
+      var t=(n.data.title||'').replace(/["{}[\]]/g,"'");
+      var sh=SH[n.s]||['[',']'];
+      lines.push('  '+sid+sh[0]+t+sh[1]);
+    });
+    S.links.forEach(function(l){
+      var fi=l.from.replace(/-/g,'_'),ti=l.to.replace(/-/g,'_');
+      lines.push('  '+fi+(l.label?' -->|'+l.label+'| ':' --> ')+ti);
+    });
+  }
+
+  else if(S.type==='psp'){
+    lines.push('graph TD');
+    S.nodes.forEach(function(n){
+      var sid=n.id.replace(/-/g,'_');
+      var t=(n.data.title||'').replace(/["{}[\]]/g,"'");
+      var id2=n.data.id?' ('+n.data.id+')':'';
+      lines.push('  '+sid+'["'+t+id2+'"]');
+    });
+    S.links.forEach(function(l){
+      lines.push('  '+l.from.replace(/-/g,'_')+' --> '+l.to.replace(/-/g,'_'));
+    });
+  }
+
+  else if(S.type==='uml'){
+    lines.push('classDiagram');
+    var STEREO={'uml-interface':'interface','uml-abstract':'abstract','uml-enum':'enumeration'};
+    S.nodes.forEach(function(n){
+      var t=n.data.title||'Class';
+      lines.push('  class '+t+' {');
+      var st=STEREO[n.s];if(st)lines.push('    <<'+st+'>>');
+      (n.data.attrs||[]).forEach(function(a){lines.push('    '+a);});
+      (n.data.methods||[]).forEach(function(m){lines.push('    '+m);});
+      lines.push('  }');
+    });
+    var ARROW={assoc:' --> ',compose:' *-- ',aggregate:' o-- ',depend:' ..> '};
+    S.links.forEach(function(l){
+      var fn=S.nodes.find(function(n){return n.id===l.from;});
+      var tn=S.nodes.find(function(n){return n.id===l.to;});
+      if(!fn||!tn)return;
+      var ft=fn.data.title||'A',tt=tn.data.title||'B';
+      var lbl=l.label?' : '+l.label:'';
+      var lt=l.type||'assoc';
+      var rel;
+      if(lt==='inherit') rel='  '+tt+' <|-- '+ft;
+      else if(lt==='realize') rel='  '+tt+' ..|> '+ft;
+      else rel='  '+ft+(ARROW[lt]||' --> ')+tt;
+      lines.push(rel+lbl);
+    });
+  }
+
+  else return null;
+  return lines.join('\n');
+}
 
 // ── UTILS ─────────────────────────────────────────────
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

@@ -96,7 +96,8 @@ body.light #cw{background:#f2f4f9;}
 
 /* PAP (flowchart) shapes — pure SVG via inline svg in nd */
 .nd[data-s^="pap-"]{background:transparent!important;border:none!important;box-shadow:none!important;cursor:grab;}
-.nd[data-s^="pap-"]:hover,.nd[data-s^="pap-"].sel{box-shadow:0 0 0 2px rgba(124,92,252,.3)!important;border-radius:50px;}
+.nd[data-s^="pap-"]:hover,.nd[data-s^="pap-"].sel{outline:2px solid rgba(124,92,252,.4);outline-offset:3px;border-radius:4px;}
+.pap-div-node{background:var(--bg2);border:1.5px solid;border-radius:6px;min-width:160px;}
 .pap-wrap{display:flex;flex-direction:column;align-items:center;}
 .pap-svg{display:block;overflow:visible;}
 .pap-ctrl{display:flex;align-items:center;justify-content:center;gap:6px;padding:3px 0 1px;}
@@ -371,15 +372,17 @@ function buildHTML(node){
     // detect end by title
     var isEnd=(d.title||'').toLowerCase().indexOf('end')>=0||(d.title||'').toLowerCase().indexOf('ende')>=0;
     c=isEnd?'#f74f6a':'#3de8a0';
-    var bg=isEnd?'rgba(247,79,106,.14)':'rgba(61,232,160,.14)';
+    var bg=isEnd?'rgba(247,79,106,.35)':'rgba(61,232,160,.35)';
+    var bgDark=isEnd?'rgba(80,10,20,.7)':'rgba(10,50,35,.7)';
     return papWrap(node.id,
-      '<ellipse cx="85" cy="28" rx="83" ry="26" fill="'+bg+'" stroke="'+c+'" stroke-width="2.5"/>'+
+      '<ellipse cx="85" cy="28" rx="83" ry="26" fill="'+bgDark+'" stroke="'+c+'" stroke-width="2"/>'+
+      '<ellipse cx="85" cy="28" rx="83" ry="26" fill="'+bg+'"/>'+
       '<text x="85" y="34" text-anchor="middle" font-family="Syne,sans-serif" font-size="13" font-weight="700" fill="'+c+'">'+esc(d.title||'')+'</text>',
       170,56);
   }
   if(s==='pap-proc'){
-    return '<div style="min-width:160px;">'+
-      '<div class="nd-hd" style="background:rgba(79,142,247,.12);color:var(--blue)">'+
+    return '<div class="pap-div-node" style="border-color:rgba(79,142,247,.6);">'+
+      '<div class="nd-hd" style="background:rgba(79,142,247,.2);color:var(--blue);border-radius:4px 4px 0 0;">'+
         '<span class="nd-ico">▬</span>'+
         '<input class="nd-title" value="'+esc(d.title||'')+'" spellcheck="false">'+
         '<div class="conn-h" title="Verbinden"></div>'+
@@ -394,7 +397,8 @@ function buildHTML(node){
     var W=190,H=100,h2=H/2,w2=W/2;
     var pts=w2+',2 '+(W-2)+','+h2+' '+w2+','+(H-2)+' 2,'+h2;
     return papWrap(node.id,
-      '<polygon points="'+pts+'" fill="rgba(247,200,79,.14)" stroke="#f7c84f" stroke-width="2.5"/>'+
+      '<polygon points="'+pts+'" fill="rgba(40,30,5,.8)" stroke="#f7c84f" stroke-width="2"/>'+
+      '<polygon points="'+pts+'" fill="rgba(247,200,79,.25)"/>'+
       '<text x="'+w2+'" y="'+(h2+5)+'" text-anchor="middle" font-family="Syne,sans-serif" font-size="12" font-weight="700" fill="#f7c84f">'+esc(d.title||'')+'</text>',
       W,H);
   }
@@ -402,24 +406,23 @@ function buildHTML(node){
     var W=190,H=62,sk=20;
     var pts2=sk+',2 '+(W-2)+',2 '+(W-2-sk)+','+(H-2)+' 2,'+(H-2);
     return papWrap(node.id,
-      '<polygon points="'+pts2+'" fill="rgba(247,140,79,.13)" stroke="#f78c4f" stroke-width="2.5"/>'+
+      '<polygon points="'+pts2+'" fill="rgba(40,20,5,.8)" stroke="#f78c4f" stroke-width="2"/>'+
+      '<polygon points="'+pts2+'" fill="rgba(247,140,79,.28)"/>'+
       '<text x="'+W/2+'" y="'+(H/2+5)+'" text-anchor="middle" font-family="Syne,sans-serif" font-size="12" font-weight="700" fill="#f78c4f">'+esc(d.title||'')+'</text>',
       W,H);
   }
   if(s==='pap-sub'){
-    return '<div style="min-width:160px;position:relative;">'+
-      '<div style="position:absolute;left:9px;top:0;bottom:0;width:2px;background:rgba(176,79,247,.5);pointer-events:none;border-radius:1px;"></div>'+
-      '<div style="position:absolute;right:9px;top:0;bottom:0;width:2px;background:rgba(176,79,247,.5);pointer-events:none;border-radius:1px;"></div>'+
-      '<div class="nd-hd" style="background:rgba(176,79,247,.12);color:var(--purple)">'+
-        '<span class="nd-ico" style="font-size:9px">▐▬▌</span>'+
-        '<input class="nd-title" value="'+esc(d.title||'')+'" spellcheck="false">'+
-        '<div class="conn-h" title="Verbinden"></div>'+
-        '<button class="nd-del" onclick="delNode(\''+node.id+'\')">✕</button>'+
-      '</div>'+
-      '<div class="nd-body">'+
-        (d.items||[]).map(function(it){return '<div class="it-row"><div class="it-dot" style="background:var(--purple)"></div><span class="it-txt">'+esc(it)+'</span></div>';}).join('')+
-        '<button class="add-btn" onclick="editNode(\''+node.id+'\')">+ bearbeiten</button>'+
-      '</div></div>';
+    // DIN 66001: Rechteck mit Doppelbalken links und rechts
+    var W=190,H=62,c='#b04ff7';
+    return papWrap(node.id,
+      '<rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="3" fill="rgba(30,10,40,.8)" stroke="'+c+'" stroke-width="2"/>'+
+      '<rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="3" fill="rgba(176,79,247,.22)"/>'+
+      '<line x1="14" y1="2" x2="14" y2="'+(H-2)+'" stroke="'+c+'" stroke-width="1.5"/>'+
+      '<line x1="22" y1="2" x2="22" y2="'+(H-2)+'" stroke="'+c+'" stroke-width="1.5"/>'+
+      '<line x1="'+(W-14)+'" y1="2" x2="'+(W-14)+'" y2="'+(H-2)+'" stroke="'+c+'" stroke-width="1.5"/>'+
+      '<line x1="'+(W-22)+'" y1="2" x2="'+(W-22)+'" y2="'+(H-2)+'" stroke="'+c+'" stroke-width="1.5"/>'+
+      '<text x="'+W/2+'" y="'+(H/2+5)+'" text-anchor="middle" font-family="Syne,sans-serif" font-size="12" font-weight="700" fill="'+c+'">'+esc(d.title||'')+'</text>',
+      W,H,node.id);
   }
 
   // UML CLASS DIAGRAM
@@ -537,8 +540,9 @@ function drawLinks(){
         lx=(exitX+entX)/2;ly=exitY-16;
       } else {
         var fx=fromCx,fy=fromB,tx=toCx,ty=toT-ARR;
-        if(Math.abs(fx-tx)<3){
-          pathD='M'+fx+','+fy+' L'+tx+','+ty;
+        if(Math.abs(fx-tx)<12){
+          // nahezu gleiche X-Position → gerade Linie
+          pathD='M'+fx+','+fy+' L'+fx+','+ty;
         } else {
           var my=(fy+ty)/2;
           pathD='M'+fx+','+fy+' L'+fx+','+my+' L'+tx+','+my+' L'+tx+','+ty;
@@ -794,7 +798,7 @@ function updateHint(){document.getElementById('hint').style.display=S.nodes.leng
 function autoLayout(){
   var nodes=S.nodes;if(!nodes.length)return;
   if(S.type==='mindmap'){layoutRadial();return;}
-  if(S.type==='pap'){layoutTopDown();return;}
+  if(S.type==='pap'){layoutTopDown(200,80,60,60);return;}
   if(S.type==='uml'){layoutTopDown(220,220,120,100);return;}
   if(S.type==='psp'){layoutPSP();return;}
   layoutTree();

@@ -199,6 +199,11 @@ select.form-input{cursor:pointer;}
 .node[data-type="doc-index"] .node-header{background:rgba(61,232,160,.15);color:var(--clr-document);}
 .node[data-type="cf-view"]{border-color:rgba(79,240,247,.5);min-width:180px;}
 .node[data-type="cf-view"] .node-header{background:rgba(79,240,247,.15);color:var(--clr-column);}
+.drag-handle{cursor:grab;color:var(--text3);padding:0 4px;user-select:none;font-size:13px;flex-shrink:0;}
+.drag-handle:hover{color:var(--text2);}
+.col-editor-row.dnd-over{border:1.5px dashed var(--accent);background:rgba(79,142,247,.08);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:7px 16px;border-radius:6px;font-size:11px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
 /* ref/flow relation lines */
 .rel-line-doc{stroke:rgba(61,232,160,.7);stroke-width:1.5px;fill:none;cursor:pointer;}
 .rel-line-doc:hover{stroke:var(--green);}
@@ -397,7 +402,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();undo();}
     if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();redo();}
   });
-  setTimeout(loadDemo, 80);
+  var _restored=loadFromStorage();
+  if(_restored){
+    setTimeout(function(){showToast('Letzter Stand wiederhergestellt');},300);
+  } else {
+    setTimeout(loadDemo, 80);
+  }
 });
 
 function setupTabs() {
@@ -1156,7 +1166,8 @@ function makeRelRow(col,i,refOpts){
   var pt=parseType(col.type);
   var hasParam=SQL_PARAMS.hasOwnProperty(pt.base);
   var paramPlaceholder=SQL_PARAMS[pt.base]||'';
-  return '<div class="col-editor-row" data-i="'+i+'" style="flex-wrap:wrap;gap:4px">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true" style="flex-wrap:wrap;gap:4px">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Name" value="'+esc(col.name)+'" data-f="name" style="min-width:80px">'+
     '<select data-f="typebase" style="min-width:90px" onchange="onTypeBaseChange(this)">'+SQL_TYPES.map(function(t){return '<option'+(t===pt.base?' selected':'')+'>'+t+'</option>';}).join('')+'</select>'+
     '<input data-f="typeparam" placeholder="'+esc(paramPlaceholder)+'" value="'+esc(pt.param)+'" style="min-width:0;width:70px;'+(hasParam?'':'display:none')+'" title="Parameter (z.B. Länge, Präzision)">'+
@@ -1177,38 +1188,44 @@ function onTypeBaseChange(sel){
   if(hasParam&&!paramInp.value) paramInp.value=SQL_PARAMS[base]||'';
 }
 function makeDocRow(f,i){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Key" value="'+esc(f.key)+'" data-f="key">'+
     '<select data-f="type">'+sel(DOC_TYPES,f.type)+'</select>'+
     '<label><input type="checkbox" data-f="required"'+(f.required?' checked':'')+'>Req</label>'+
     '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
 }
 function makePropRow(p,i){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Name" value="'+esc(p.name)+'" data-f="name">'+
     '<select data-f="type">'+sel(PROP_TYPES,p.type)+'</select>'+
     '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
 }
 function makeKVRow(k,i){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Pattern" value="'+esc(k.pattern)+'" data-f="pattern" style="flex:2;min-width:80px">'+
     '<select data-f="type">'+sel(KV_TYPES,k.type)+'</select>'+
     '<input placeholder="TTL" value="'+esc(k.ttl)+'" data-f="ttl" style="min-width:0;width:50px">'+
     '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
 }
 function makeTSTagRow(t,i){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Tag Name" value="'+esc(t.name)+'" data-f="name">'+
     '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
 }
 function makeTSFieldRow(f,i){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Field" value="'+esc(f.name)+'" data-f="name">'+
     '<select data-f="type">'+sel(TS_TYPES,f.type)+'</select>'+
     '<button class="node-del" onclick="removeEditRow(this)">✕</button></div>';
 }
 function makeCFRow(k,i,hasSortOrder){
-  return '<div class="col-editor-row" data-i="'+i+'">'+
+  return '<div class="col-editor-row" data-i="'+i+'" draggable="true">'+
+    '<span class="drag-handle">⠿</span>'+
     '<input placeholder="Name" value="'+esc(k.name)+'" data-f="name">'+
     '<select data-f="type">'+sel(CF_TYPES,k.type)+'</select>'+
     (hasSortOrder?'<select data-f="order"><option'+(k.order==='ASC'?' selected':'')+'>ASC</option><option'+(k.order==='DESC'?' selected':'')+'>DESC</option></select>':'')+
@@ -1224,8 +1241,8 @@ function addRelEditRow(cid, nodeId){
       refOpts+='<option value="'+esc(t.data.title+'.'+c.name)+'">'+esc(t.data.title)+'.'+esc(c.name)+'</option>';
     });
   });
-  var row=document.createElement('div'); row.className='col-editor-row'; row.style.flexWrap='wrap'; row.style.gap='4px';
-  row.innerHTML='<input placeholder="Name" value="new_col" data-f="name" style="min-width:80px">'+
+  var row=document.createElement('div'); row.className='col-editor-row'; row.style.flexWrap='wrap'; row.style.gap='4px'; row.draggable=true;
+  row.innerHTML='<span class="drag-handle">⠿</span><input placeholder="Name" value="new_col" data-f="name" style="min-width:80px">'+
     '<select data-f="typebase" style="min-width:90px" onchange="onTypeBaseChange(this)">'+SQL_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select>'+
     '<input data-f="typeparam" placeholder="255" value="" style="min-width:0;width:70px;display:none" title="Parameter">'+
     '<label><input type="checkbox" data-f="pk">PK</label>'+
@@ -1237,14 +1254,15 @@ function addRelEditRow(cid, nodeId){
 }
 function addEditRow(cid, kind) {
   var cont=document.getElementById(cid); if(!cont)return;
-  var row=document.createElement('div'); row.className='col-editor-row';
-  if(kind==='document') row.innerHTML='<input placeholder="Key" value="field" data-f="key"><select data-f="type">'+DOC_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><label><input type="checkbox" data-f="required">Req</label><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='graph') row.innerHTML='<input placeholder="Name" value="prop" data-f="name"><select data-f="type">'+PROP_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='keyvalue') row.innerHTML='<input placeholder="Pattern" value="ns:{id}" data-f="pattern" style="flex:2;min-width:80px"><select data-f="type">'+KV_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><input placeholder="TTL" value="—" data-f="ttl" style="min-width:0;width:50px"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='ts-tag') row.innerHTML='<input placeholder="Tag Name" value="tag" data-f="name"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='ts-field') row.innerHTML='<input placeholder="Field" value="value" data-f="name"><select data-f="type">'+TS_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='cf-pk'||kind==='cf-col') row.innerHTML='<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
-  else if(kind==='cf-ck') row.innerHTML='<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><select data-f="order"><option>ASC</option><option>DESC</option></select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  var row=document.createElement('div'); row.className='col-editor-row'; row.draggable=true;
+  var h='<span class="drag-handle">⠿</span>';
+  if(kind==='document') row.innerHTML=h+'<input placeholder="Key" value="field" data-f="key"><select data-f="type">'+DOC_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><label><input type="checkbox" data-f="required">Req</label><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='graph') row.innerHTML=h+'<input placeholder="Name" value="prop" data-f="name"><select data-f="type">'+PROP_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='keyvalue') row.innerHTML=h+'<input placeholder="Pattern" value="ns:{id}" data-f="pattern" style="flex:2;min-width:80px"><select data-f="type">'+KV_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><input placeholder="TTL" value="—" data-f="ttl" style="min-width:0;width:50px"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='ts-tag') row.innerHTML=h+'<input placeholder="Tag Name" value="tag" data-f="name"><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='ts-field') row.innerHTML=h+'<input placeholder="Field" value="value" data-f="name"><select data-f="type">'+TS_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='cf-pk'||kind==='cf-col') row.innerHTML=h+'<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
+  else if(kind==='cf-ck') row.innerHTML=h+'<input placeholder="Name" value="col" data-f="name"><select data-f="type">'+CF_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><select data-f="order"><option>ASC</option><option>DESC</option></select><button class="node-del" onclick="removeEditRow(this)">✕</button>';
   cont.appendChild(row);
 }
 function removeEditRow(btn){btn.closest('.col-editor-row').remove();}
@@ -2541,6 +2559,112 @@ function addRelByTitle(fromTitle, fromCol, toTitle, toCol){
     addRelation(fromNode.id, fromCol, toNode.id, toCol);
   }
 }
+
+// ── DRAG-TO-REORDER (Modal field lists) ──────────────────
+var _dndIdx=null;
+function setupDndContainer(containerId){
+  var cont=document.getElementById(containerId);
+  if(!cont)return;
+  cont.addEventListener('dragstart',function(e){
+    var row=e.target.closest('.col-editor-row');if(!row)return;
+    var rows=Array.from(cont.querySelectorAll('.col-editor-row'));
+    _dndIdx=rows.indexOf(row);
+    e.dataTransfer.effectAllowed='move';
+    setTimeout(function(){row.style.opacity='0.4';},0);
+  });
+  cont.addEventListener('dragend',function(e){
+    var row=e.target.closest('.col-editor-row');if(row)row.style.opacity='';
+    cont.querySelectorAll('.col-editor-row').forEach(function(r){r.classList.remove('dnd-over');});
+    _dndIdx=null;
+  });
+  cont.addEventListener('dragover',function(e){
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    var row=e.target.closest('.col-editor-row');
+    cont.querySelectorAll('.col-editor-row').forEach(function(r){r.classList.remove('dnd-over');});
+    if(row)row.classList.add('dnd-over');
+  });
+  cont.addEventListener('dragleave',function(e){
+    if(!cont.contains(e.relatedTarget))
+      cont.querySelectorAll('.col-editor-row').forEach(function(r){r.classList.remove('dnd-over');});
+  });
+  cont.addEventListener('drop',function(e){
+    e.preventDefault();
+    var targetRow=e.target.closest('.col-editor-row');
+    if(!targetRow||_dndIdx===null)return;
+    var rows=Array.from(cont.querySelectorAll('.col-editor-row'));
+    var toIdx=rows.indexOf(targetRow);
+    if(toIdx===_dndIdx)return;
+    var moving=rows[_dndIdx];
+    if(toIdx<_dndIdx) cont.insertBefore(moving,targetRow);
+    else cont.insertBefore(moving,targetRow.nextSibling);
+    cont.querySelectorAll('.col-editor-row').forEach(function(r){r.classList.remove('dnd-over');});
+    moving.style.opacity='';
+    _dndIdx=null;
+  });
+}
+
+// Override showModal to attach DnD after render
+var _origShowModal=showModal;
+function showModal(title,body,onSave,isExport,isImport){
+  _origShowModal(title,body,onSave,isExport,isImport);
+  // attach DnD to all known container IDs
+  ['et-cols','et-tags','et-pk','et-ck'].forEach(function(cid){setupDndContainer(cid);});
+}
+
+// ── LOCALSTORAGE PERSISTENCE ─────────────────────────────
+function saveToStorage(){
+  try{
+    localStorage.setItem('db-architect-state',JSON.stringify({
+      nodes:state.nodes, relations:state.relations, type:state.dbType, nextId:state.nextId
+    }));
+  }catch(e){}
+}
+
+function loadFromStorage(){
+  try{
+    var raw=localStorage.getItem('db-architect-state');
+    if(!raw)return false;
+    var data=JSON.parse(raw);
+    if(!Array.isArray(data.nodes))return false;
+    state.nodes=data.nodes;
+    state.relations=data.relations||[];
+    state.nextId=data.nextId||1;
+    if(data.type){
+      state.dbType=data.type;
+      document.querySelectorAll('.dbtab').forEach(function(t){t.classList.toggle('active',t.dataset.type===data.type);});
+      updateSidebar();
+    }
+    canvas.querySelectorAll('.node').forEach(function(n){n.remove();});
+    canvasSvg.innerHTML='';
+    state.nodes.forEach(function(n){renderNode(n);});
+    drawRelations();
+    updateHint();
+    refreshCodePanel();
+    return true;
+  }catch(e){return false;}
+}
+
+function showToast(msg){
+  var t=document.createElement('div');
+  t.className='toast show';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';},1800);
+  setTimeout(function(){t.remove();},2200);
+}
+
+// Patch snapshot to also save after state changes
+var _origSnapshot=snapshot;
+snapshot=function(label){
+  _origSnapshot(label);
+  saveToStorage();
+};
+// Patch applySnapshot (undo/redo) to also save
+var _origApplySnapshot=applySnapshot;
+applySnapshot=function(snap){
+  _origApplySnapshot(snap);
+  saveToStorage();
+};
 </script>
 </body>
 </html>

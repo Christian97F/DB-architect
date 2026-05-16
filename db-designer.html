@@ -89,7 +89,7 @@ body.light .code-tab.active{background:rgba(45,110,224,.08);}
 .sidebar-add .ico{font-size:13px;}
 .sidebar-info{padding:8px 12px;font-size:10px;color:var(--text3);line-height:1.7;}
 .sidebar-info b{color:var(--text2);}
-#canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;background-position:-1px -1px;}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg);background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);}
 #canvas{position:absolute;top:0;left:0;transform-origin:0 0;}
 #canvas-svg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;transform-origin:0 0;}
 .zoom-info{position:absolute;bottom:12px;right:14px;font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);padding:3px 8px;border-radius:4px;}
@@ -236,10 +236,12 @@ select.form-input{cursor:pointer;}
     <button class="btn" id="btn-undo" onclick="undo()" style="opacity:.35" title="Nichts rückgängig zu machen">↩ Undo</button>
     <button class="btn" id="btn-redo" onclick="redo()" style="opacity:.35" title="Nichts zu wiederholen">↪ Redo</button>
     <div class="top-sep"></div>
+    <button class="btn" onclick="autoLayout()">◈ Layout</button>
+    <button class="btn" onclick="zoomReset()">⊡ Zoom</button>
+    <button class="btn" onclick="loadDemoForCurrentType()">★ Demo</button>
+    <div class="top-sep"></div>
     <button class="btn" onclick="showImportModal()">↑ Import</button>
-    <button class="btn" onclick="showExportModal()">↓ Export</button>
-    <button class="btn" onclick="exportImage()">🖼 PNG</button>
-    <button class="btn" onclick="exportPDF()">📄 PDF</button>
+    <button class="btn" onclick="showExportDialog()">↓ Export</button>
     <button class="btn" onclick="toggleCodePanel()" id="btn-code">{ } Code</button>
     <button class="btn danger" onclick="clearCanvas()">✕ Leeren</button>
   </div>
@@ -248,12 +250,6 @@ select.form-input{cursor:pointer;}
 <div id="main">
   <div id="sidebar">
     <div class="sidebar-section" id="sidebar-content"></div>
-    <div class="sidebar-section">
-      <div class="sidebar-title">Canvas</div>
-      <button class="sidebar-add" onclick="loadDemoForCurrentType()"><span class="ico">★</span>Demo laden</button>
-      <button class="sidebar-add" onclick="zoomReset()"><span class="ico">⊡</span>Zoom zurücksetzen</button>
-      <button class="sidebar-add" onclick="autoLayout()"><span class="ico">◈</span>Auto-Layout</button>
-    </div>
     <div class="sidebar-section">
       <div class="sidebar-title">Legende</div>
       <div class="sidebar-info" id="sidebar-legend"></div>
@@ -831,7 +827,18 @@ function setupCanvasEvents() {
     }
   });
   document.addEventListener('mouseup',function(){
-    if(isDragging&&dragNode){document.getElementById(dragNode.id)&&document.getElementById(dragNode.id).classList.remove('dragging');isDragging=false;dragNode=null;}
+    if(isDragging&&dragNode){
+      var el=document.getElementById(dragNode.id);
+      if(el)el.classList.remove('dragging');
+      var G=20;
+      dragNode.x=Math.round(dragNode.x/G)*G;
+      dragNode.y=Math.round(dragNode.y/G)*G;
+      var snapEl=document.getElementById(dragNode.id);
+      if(snapEl){snapEl.style.left=dragNode.x+'px';snapEl.style.top=dragNode.y+'px';}
+      drawRelations();
+      saveToStorage();
+      isDragging=false;dragNode=null;
+    }
     isPanning=false;
   });
   canvasWrap.addEventListener('mousedown',function(e){
@@ -853,6 +860,11 @@ function applyTransform(){
   canvas.style.transform='translate('+panX+'px,'+panY+'px) scale('+scale+')';
   canvasSvg.style.transform='translate('+panX+'px,'+panY+'px) scale('+scale+')';
   document.getElementById('zoom-info').textContent=Math.round(scale*100)+'%';
+  var gs=Math.round(40*scale);
+  var gx=((panX%gs)+gs)%gs;
+  var gy=((panY%gs)+gs)%gs;
+  canvasWrap.style.backgroundSize=gs+'px '+gs+'px';
+  canvasWrap.style.backgroundPosition=gx+'px '+gy+'px';
 }
 function zoomReset(){scale=1;panX=60;panY=60;applyTransform();}
 function deselectAll(){document.querySelectorAll('.node.selected').forEach(function(n){n.classList.remove('selected');});}
@@ -1765,6 +1777,27 @@ function dlExport(){
 
 // ── THEME ─────────────────────────────────────────────
 var isLight=false;
+var exportWithBg=true;
+function showExportDialog(){
+  var overlay=document.createElement('div');overlay.className='modal-overlay';overlay.id='export-dlg';
+  overlay.innerHTML='<div class="modal" style="min-width:340px;max-width:400px;">'+
+    '<div class="modal-header"><h2>↓ Export</h2><button class="node-del" onclick="document.getElementById(\'export-dlg\').remove()" style="width:20px;height:20px;font-size:13px">✕</button></div>'+
+    '<div class="modal-body">'+
+      '<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);">'+
+        '<label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;">'+
+          '<input type="checkbox" id="exp-bg" '+(exportWithBg?'checked':'')+' style="width:14px;height:14px;cursor:pointer;">'+
+          'Mit Hintergrund (PNG &amp; PDF)'+
+        '</label>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:7px;">'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();showExportModal()" style="justify-content:center;padding:8px">📋 JSON exportieren</button>'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();exportImage()" style="justify-content:center;padding:8px">🖼 PNG exportieren</button>'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();exportPDF()" style="justify-content:center;padding:8px">📄 PDF exportieren</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(overlay);
+}
 function toggleTheme(){
   isLight=!isLight;
   document.body.classList.toggle('light',isLight);
@@ -1817,11 +1850,12 @@ function renderToCanvas(dpr){
   var textSub=light?'#4a5270':'#8a95b0';
   var textMuted=light?'#9099b8':'#4a5570';
 
-  ctx.fillStyle=bgColor; ctx.fillRect(0,0,W,H);
-
-  // grid dots
-  ctx.fillStyle=gridColor;
-  for(var gx=0;gx<W;gx+=24) for(var gy=0;gy<H;gy+=24){ctx.beginPath();ctx.arc(gx,gy,0.8,0,Math.PI*2);ctx.fill();}
+  if(exportWithBg){
+    ctx.fillStyle=bgColor; ctx.fillRect(0,0,W,H);
+    // grid dots
+    ctx.fillStyle=gridColor;
+    for(var gx=0;gx<W;gx+=24) for(var gy=0;gy<H;gy+=24){ctx.beginPath();ctx.arc(gx,gy,0.8,0,Math.PI*2);ctx.fill();}
+  }
 
   // ── DRAW SVG ARROWS ──
   // Re-render relations directly to canvas using same geometry as drawRelations

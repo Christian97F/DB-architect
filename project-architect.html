@@ -51,7 +51,7 @@ body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--tex
 /* CANVAS AREA */
 #cw{flex:1;position:relative;overflow:hidden;background:var(--bg);}
 body.light #cw{background:#f2f4f9;}
-#cw::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;background-position:-1px -1px;pointer-events:none;}
+#cw::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:var(--gs,40px) var(--gs,40px);background-position:var(--gx,0px) var(--gy,0px);pointer-events:none;}
 #canvas{position:absolute;top:0;left:0;transform-origin:0 0;}
 #svg-layer{position:absolute;top:0;left:0;overflow:visible;transform-origin:0 0;pointer-events:none;}
 .zoom-inf{position:absolute;bottom:12px;right:14px;font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);padding:3px 8px;border-radius:4px;}
@@ -163,14 +163,11 @@ body.light #cw{background:#f2f4f9;}
     <div class="sep"></div>
     <button class="btn" id="bcn" onclick="toggleConnect()">⟶ Verbinden</button>
     <button class="btn" onclick="autoLayout()">◈ Layout</button>
+    <button class="btn" onclick="zoomReset()">⊡ Zoom</button>
     <button class="btn" onclick="doDemo()">★ Demo</button>
     <div class="sep"></div>
-    <button class="btn" onclick="exportJSON()" title="Als JSON-Datei speichern">💾 Speichern</button>
-    <button class="btn" onclick="importJSON()" title="JSON-Datei laden">📂 Laden</button>
-    <button class="btn" onclick="exportMermaid()" title="Als Mermaid-Code exportieren">⬡ Mermaid</button>
-    <div class="sep"></div>
-    <button class="btn" onclick="exportImg('png')">🖼 PNG</button>
-    <button class="btn" onclick="exportImg('pdf')">📄 PDF</button>
+    <button class="btn" onclick="importJSON()">↑ Import</button>
+    <button class="btn" onclick="showExportDialog()">↓ Export</button>
     <button class="btn danger" onclick="clearAll()">✕ Leeren</button>
   </div>
 </div>
@@ -178,11 +175,6 @@ body.light #cw{background:#f2f4f9;}
 <div id="main">
   <div id="sidebar">
     <div class="sb-sec" id="sb-items"></div>
-    <div class="sb-sec">
-      <div class="sb-title">Canvas</div>
-      <button class="sb-btn" onclick="zoomReset()"><span class="ico">⊡</span>Zoom zurücksetzen</button>
-      <button class="sb-btn" onclick="autoLayout()"><span class="ico">◈</span>Auto-Layout</button>
-    </div>
     <div class="sb-sec">
       <div class="sb-title">Info</div>
       <div class="sb-info" id="sb-info"></div>
@@ -685,7 +677,17 @@ function setupCanvas(){
     if(isPan){px=ppx+(e.clientX-psx);py=ppy+(e.clientY-psy);applyT();}
   });
   document.addEventListener('mouseup',function(){
-    if(isDrag&&dragN){var el=document.getElementById(dragN.id);if(el)el.classList.remove('drag');isDrag=false;dragN=null;}
+    if(isDrag&&dragN){
+      var el=document.getElementById(dragN.id);if(el)el.classList.remove('drag');
+      var G=20;
+      dragN.x=Math.round(dragN.x/G)*G;
+      dragN.y=Math.round(dragN.y/G)*G;
+      var snapEl=document.getElementById(dragN.id);
+      if(snapEl){snapEl.style.left=dragN.x+'px';snapEl.style.top=dragN.y+'px';}
+      drawLinks();
+      saveToStorage();
+      isDrag=false;dragN=null;
+    }
     isPan=false;
   });
   cw.addEventListener('mousedown',function(e){
@@ -705,6 +707,12 @@ function applyT(){
   canvas.style.transform='translate('+px+'px,'+py+'px) scale('+scale+')';
   svgL.style.transform='translate('+px+'px,'+py+'px) scale('+scale+')';
   document.getElementById('zi').textContent=Math.round(scale*100)+'%';
+  var gs=Math.round(40*scale);
+  var gx=((px%gs)+gs)%gs;
+  var gy=((py%gs)+gs)%gs;
+  cw.style.setProperty('--gx',gx+'px');
+  cw.style.setProperty('--gy',gy+'px');
+  cw.style.setProperty('--gs',gs+'px');
 }
 function zoomReset(){scale=1;px=60;py=60;applyT();}
 function deselectAll(){document.querySelectorAll('.nd.sel').forEach(function(n){n.classList.remove('sel');});}
@@ -739,7 +747,7 @@ function editNode(id){
   var inner='<div class="fr"><span class="fl">Titel</span><input class="fi" id="et" value="'+esc(d.title||'')+'"></div>';
   if(d.id!==undefined)inner+='<div class="fr"><span class="fl">ID/Code</span><input class="fi" id="ei" value="'+esc(d.id||'')+'"></div>';
   inner+='<div style="margin:8px 0 4px;font-size:10px;color:var(--text3)">Punkte:</div><div id="el">'+
-    (d.items||[]).map(function(it,i){return '<div class="elr"><input value="'+esc(it)+'" data-i="'+i+'"><button class="nd-del" onclick="this.closest(\'.elr\').remove()">✕</button></div>';}).join('')+
+    (d.items||[]).map(function(it,i){return '<div class="elr" draggable="true"><span class="drag-handle">⠿</span><input value="'+esc(it)+'" data-i="'+i+'"><button class="nd-del" onclick="this.closest(\'.elr\').remove()">✕</button></div>';}).join('')+
   '</div><button class="add-btn" onclick="addEL()">+ Punkt</button>';
   openModal('Bearbeiten',inner,function(){
     snap('edit');
@@ -749,7 +757,13 @@ function editNode(id){
     renderNode(node);drawLinks();closeModal();
   });
 }
-function addEL(){var c=document.getElementById('el');if(!c)return;var r=document.createElement('div');r.className='elr';r.innerHTML='<input value="Neuer Punkt"><button class="nd-del" onclick="this.closest(\'.elr\').remove()">✕</button>';c.appendChild(r);}
+function addEL(){
+  var c=document.getElementById('el');if(!c)return;
+  var r=document.createElement('div');r.className='elr';r.draggable=true;
+  r.innerHTML='<span class="drag-handle">⠿</span><input value="Neuer Punkt"><button class="nd-del" onclick="this.closest(\'.elr\').remove()">✕</button>';
+  c.appendChild(r);
+  setupDndContainer('el');
+}
 function addUMLEl(cid){var c=document.getElementById(cid);if(!c)return;var r=document.createElement('div');r.className='elr';r.draggable=true;r.innerHTML='<span class="drag-handle">⠿</span><input value="Neu"><button class="nd-del" onclick="this.closest(\'.elr\').remove()">✕</button>';c.appendChild(r);}
 
 // ── MODAL ─────────────────────────────────────────────
@@ -1013,11 +1027,13 @@ function exportImg(fmt){
     ctx.scale(DPR,DPR);
 
     // Background
-    ctx.fillStyle=isLight?'#f2f4f9':'#0d0f14';
-    ctx.fillRect(0,0,W,H);
-    // Grid dots
-    ctx.fillStyle=isLight?'rgba(0,0,0,.06)':'rgba(255,255,255,.03)';
-    for(var gx=0;gx<W;gx+=40)for(var gy=0;gy<H;gy+=40){ctx.beginPath();ctx.arc(gx,gy,.8,0,Math.PI*2);ctx.fill();}
+    if(exportWithBg){
+      ctx.fillStyle=isLight?'#f2f4f9':'#0d0f14';
+      ctx.fillRect(0,0,W,H);
+      // Grid dots
+      ctx.fillStyle=isLight?'rgba(0,0,0,.06)':'rgba(255,255,255,.03)';
+      for(var gx=0;gx<W;gx+=40)for(var gy=0;gy<H;gy+=40){ctx.beginPath();ctx.arc(gx,gy,.8,0,Math.PI*2);ctx.fill();}
+    }
 
     // 3) Draw SVG layer onto canvas using drawImage of SVG blob
     // Serialize SVG, stamp into image, draw
@@ -1371,6 +1387,29 @@ function buildMermaid(){
   return lines.join('\n');
 }
 
+var exportWithBg=true;
+function showExportDialog(){
+  var overlay=document.createElement('div');overlay.className='mo-ov';overlay.id='export-dlg';
+  overlay.innerHTML='<div class="mo" style="min-width:340px;max-width:400px;">'+
+    '<div class="mo-hd"><h2>↓ Export</h2><button class="nd-del" onclick="document.getElementById(\'export-dlg\').remove()" style="width:22px;height:22px;font-size:13px">✕</button></div>'+
+    '<div class="mo-bd">'+
+      '<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);">'+
+        '<label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;">'+
+          '<input type="checkbox" id="exp-bg" '+(exportWithBg?'checked':'')+' style="width:14px;height:14px;cursor:pointer;">'+
+          'Mit Hintergrund (PNG &amp; PDF)'+
+        '</label>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:7px;">'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();exportJSON()" style="justify-content:center;padding:8px">📋 JSON exportieren</button>'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();exportImg(\'png\')" style="justify-content:center;padding:8px">🖼 PNG exportieren</button>'+
+        '<button class="btn" onclick="exportWithBg=document.getElementById(\'exp-bg\').checked;document.getElementById(\'export-dlg\').remove();exportImg(\'pdf\')" style="justify-content:center;padding:8px">📄 PDF exportieren</button>'+
+        '<button class="btn" onclick="document.getElementById(\'export-dlg\').remove();exportMermaid()" style="justify-content:center;padding:8px">⬡ Mermaid exportieren</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(overlay);
+}
+
 // ── UTILS ─────────────────────────────────────────────
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function showMsg(txt){document.querySelectorAll('.msg').forEach(function(m){m.remove();});var e=document.createElement('div');e.className='msg';e.textContent=txt;document.body.appendChild(e);setTimeout(function(){e.remove();},2400);}
@@ -1422,7 +1461,7 @@ function setupDndContainer(containerId){
 var _origOpenModal=openModal;
 openModal=function(title,body,onSave,onDelete){
   _origOpenModal(title,body,onSave,onDelete);
-  ['el-attrs','el-methods'].forEach(function(cid){setupDndContainer(cid);});
+  ['el-attrs','el-methods','el'].forEach(function(cid){setupDndContainer(cid);});
 };
 
 // ── LOCALSTORAGE PERSISTENCE ─────────────────────────────

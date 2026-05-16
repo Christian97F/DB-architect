@@ -225,7 +225,7 @@ var CFG={
   psp:{
     info:'<b>Projekt</b> = Ebene 0<br><b>Phase</b> = Ebene 1<br><b>Arbeitspaket</b> = Ebene 2<br><b>Task</b> = Ebene 3',
     items:[
-      {label:'Projekt (Ebene 0)',ico:'▦',s:'psp-proj',def:{title:'Projekt',id:'1.0',items:[]}},
+      {label:'Projekt (Ebene 0)',ico:'▦',s:'psp-proj',def:{title:'Projekt',id:'1',items:[]}},
       {label:'Phase (Ebene 1)',ico:'◈',s:'psp-phase',def:{title:'Phase 1',id:'1.1',items:[]}},
       {label:'Arbeitspaket',ico:'◻',s:'psp-ap',def:{title:'Arbeitspaket',id:'1.1.1',items:['5d','Team A']}},
       {label:'Task (Ebene 3)',ico:'◦',s:'psp-task',def:{title:'Aufgabe',id:'1.1.1.1',items:[]}}
@@ -972,9 +972,7 @@ function renumberPSP(){
     });
   }
 
-  // Find the root's prefix: psp-proj = "1.0", others = "1"
-  var rootPrefix=root.s==='psp-proj'?'1.0':'1';
-  assignNum(root.id,rootPrefix);
+  assignNum(root.id,'1');
 
   // Re-render all PSP nodes to show updated IDs
   nodes.forEach(function(n){
@@ -1066,7 +1064,7 @@ var DEMOS={
     lks2.forEach(function(l){S.links.push({id:'lk'+(S.nid++),from:ids2[l.f],to:ids2[l.t],type:l.tp,label:l.lb});});
   },
   psp:function(){
-    var proj={id:'n'+(S.nid++),s:'psp-proj',x:0,y:0,data:{title:'ERP-Einführung',id:'1.0',items:[]}};
+    var proj={id:'n'+(S.nid++),s:'psp-proj',x:0,y:0,data:{title:'ERP-Einführung',id:'1',items:[]}};
     var phases=[
       {title:'Analyse',id:'1.1'},{title:'Entwicklung',id:'1.2'},{title:'Rollout',id:'1.3'}
     ];

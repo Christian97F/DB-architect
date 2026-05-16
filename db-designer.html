@@ -218,8 +218,8 @@ select.form-input{cursor:pointer;}
 <div id="topbar">
   <div id="logo">DB<span>Architect</span></div>
   <div class="top-sep"></div>
-  <a href="index.html" style="padding:4px 11px;font-size:10.5px;font-family:'JetBrains Mono',monospace;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);text-decoration:none;white-space:nowrap;transition:all .15s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border2)'" title="Startseite">⌂ Start</a>
-  <a href="project-architect.html" style="padding:4px 11px;font-size:10.5px;font-family:'JetBrains Mono',monospace;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);text-decoration:none;white-space:nowrap;transition:all .15s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border2)'" title="Beide Dateien müssen im selben Ordner liegen">◈ Project Architect</a>
+  <a href="index.html" class="btn" style="color:var(--text3);text-decoration:none;">⌂ Start</a>
+  <a href="project-architect.html" class="btn" style="color:var(--text3);text-decoration:none;">◈ Project Architect</a>
   <div class="top-sep"></div>
   <div class="dbtype-tabs">
     <div class="dbtab active" data-type="relational">▦ Relational</div>
@@ -1762,7 +1762,7 @@ function showModal(title,body,onSave,isExport,isImport){
   overlay.innerHTML='<div class="modal"><div class="modal-header"><h2>'+title+'</h2><button class="node-del" onclick="closeModal()" style="width:22px;height:22px;font-size:14px">✕</button></div><div class="modal-body">'+body+'</div><div class="modal-footer">'+footer+'</div></div>';
   document.body.appendChild(overlay);
   window._pendingSave=onSave;
-  overlay.addEventListener('click',function(e){if(e.target===overlay)closeModal();});
+  setTimeout(function(){['et-cols','et-tags','et-pk','et-ck'].forEach(function(cid){setupDndContainer(cid);});},0);
 }
 function closeModal(){var o=document.getElementById('modal-overlay');if(o)o.remove();}
 function copyExport(){var ta=document.getElementById('export-ta');if(ta){navigator.clipboard.writeText(ta.value);showMsg('Kopiert!');}}
@@ -2637,13 +2637,7 @@ function setupDndContainer(containerId){
   });
 }
 
-// Override showModal to attach DnD after render
-var _origShowModal=showModal;
-function showModal(title,body,onSave,isExport,isImport){
-  _origShowModal(title,body,onSave,isExport,isImport);
-  // attach DnD to all known container IDs
-  ['et-cols','et-tags','et-pk','et-ck'].forEach(function(cid){setupDndContainer(cid);});
-}
+// DnD now integrated directly in showModal above
 
 // ── LOCALSTORAGE PERSISTENCE ─────────────────────────────
 function saveToStorage(){

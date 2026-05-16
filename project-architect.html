@@ -148,7 +148,8 @@ body.light #cw{background:#f2f4f9;}
 <body>
 <div id="topbar">
   <div id="logo">Project<span>Architect</span></div>
-  <a href="index.html" class="btn" style="color:var(--text3)">⌂ Startseite</a>
+  <a href="index.html" class="btn" style="color:var(--text3);text-decoration:none;">⌂ Start</a>
+  <a href="db-designer.html" class="btn" style="color:var(--text3);text-decoration:none;">▦ DB Architect</a>
   <div class="sep"></div>
   <div class="tab active" data-t="mindmap">🧠 Mindmap</div>
   <div class="tab" data-t="pap">↪ Ablaufplan</div>
@@ -660,6 +661,7 @@ function doConnect(node){
   S.links.push(newLk);
   drawLinks();connFrom=null;
   document.getElementById('bcn').style.borderColor=connMode?'var(--accent)':'';
+  if(S.type==='psp') renumberPSP();
   showMsg('Verbunden');
 }
 
@@ -794,6 +796,7 @@ function autoLayout(){
   if(S.type==='mindmap'){layoutRadial();return;}
   if(S.type==='pap'){layoutTopDown();return;}
   if(S.type==='uml'){layoutTopDown(220,220,120,100);return;}
+  if(S.type==='psp'){layoutPSP();return;}
   layoutTree();
 }
 
@@ -876,6 +879,109 @@ function layoutTree(){
   var cr2=0;roots.forEach(function(r){cr2=posT(r,0,cr2);});
   var c3=0;nodes.forEach(function(n){if(!placed[n.id]){n.x=40+c3*CW;n.y=40+cr2*RH;var e=document.getElementById(n.id);if(e){e.style.left=n.x+'px';e.style.top=n.y+'px';}c3++;}});
   drawLinks();fitAll();
+}
+
+// ── PSP: Horizontal Tree Layout (Org-Chart) ───────────
+function layoutPSP(){
+  var nodes=S.nodes;if(!nodes.length)return;
+  // Build tree from links
+  var ch={},hasP={};
+  nodes.forEach(function(n){ch[n.id]=[];});
+  S.links.forEach(function(l){
+    if(ch[l.from])ch[l.from].push(l.to);
+    hasP[l.to]=true;
+  });
+  // Find root (prefer psp-proj, else node with no parent)
+  var root=nodes.find(function(n){return n.s==='psp-proj'&&!hasP[n.id];})||
+            nodes.find(function(n){return !hasP[n.id];})||nodes[0];
+  if(!root)return;
+
+  var NW=160,NH=72,GAP_X=24,GAP_Y=60;
+
+  // First pass: compute subtree width for each node
+  var subW={};
+  function calcW(id){
+    var kids=(ch[id]||[]);
+    if(!kids.length){subW[id]=NW;return NW;}
+    var total=0;
+    kids.forEach(function(k){total+=calcW(k)+GAP_X;});
+    total-=GAP_X;
+    subW[id]=Math.max(NW,total);
+    return subW[id];
+  }
+  calcW(root.id);
+
+  // Second pass: assign positions (center parent over children)
+  var placed={};
+  function place(id,cx,y){
+    if(placed[id])return;placed[id]=true;
+    var n=nodes.find(function(x){return x.id===id;});if(!n)return;
+    n.x=cx-NW/2;n.y=y;
+    var el=document.getElementById(id);if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}
+    var kids=(ch[id]||[]);if(!kids.length)return;
+    var totalKidsW=0;kids.forEach(function(k){totalKidsW+=subW[k]+GAP_X;});totalKidsW-=GAP_X;
+    var kx=cx-totalKidsW/2;
+    kids.forEach(function(k){
+      place(k,kx+subW[k]/2,y+NH+GAP_Y);
+      kx+=subW[k]+GAP_X;
+    });
+  }
+  place(root.id,600,40);
+
+  // Place unconnected nodes below
+  var c2=0;
+  nodes.forEach(function(n){
+    if(!placed[n.id]){n.x=40+c2*(NW+GAP_X);n.y=40;var e=document.getElementById(n.id);if(e){e.style.left=n.x+'px';e.style.top=n.y+'px';}c2++;}
+  });
+
+  renumberPSP();
+  drawLinks();fitAll();
+}
+
+// ── PSP Auto-Numbering ────────────────────────────────
+function renumberPSP(){
+  var nodes=S.nodes;
+  var ch={},hasP={};
+  nodes.forEach(function(n){ch[n.id]=[];});
+  S.links.forEach(function(l){
+    if(ch[l.from])ch[l.from].push(l.to);
+    hasP[l.to]=true;
+  });
+  var root=nodes.find(function(n){return n.s==='psp-proj'&&!hasP[n.id];})||
+            nodes.find(function(n){return !hasP[n.id];})||nodes[0];
+  if(!root)return;
+
+  // Sort children left-to-right by x position
+  function sortedKids(id){
+    return (ch[id]||[]).map(function(k){return nodes.find(function(n){return n.id===k;});})
+      .filter(Boolean).sort(function(a,b){return a.x-b.x;}).map(function(n){return n.id;});
+  }
+
+  function assignNum(id,prefix){
+    var n=nodes.find(function(x){return x.id===id;});if(!n)return;
+    n.data.id=prefix;
+    var el=document.getElementById(id);if(el){
+      // re-render the ID display in the node
+      var idSpan=el.querySelector('.psp-id');
+      if(idSpan)idSpan.textContent=prefix;
+    }
+    var kids=sortedKids(id);
+    kids.forEach(function(k,i){
+      var childPrefix=prefix+'.'+( i+1);
+      assignNum(k,childPrefix);
+    });
+  }
+
+  // Find the root's prefix: psp-proj = "1.0", others = "1"
+  var rootPrefix=root.s==='psp-proj'?'1.0':'1';
+  assignNum(root.id,rootPrefix);
+
+  // Re-render all PSP nodes to show updated IDs
+  nodes.forEach(function(n){
+    if(n.s&&n.s.indexOf('psp-')===0){renderNode(n);}
+  });
+  drawLinks();
+  saveToStorage();
 }
 
 function fitAll(){
